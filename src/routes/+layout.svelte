@@ -16,7 +16,7 @@
 			<h2
 				class="text-md font-normal text-sidebar-accent-foreground duration-200 hover:text-sidebar-foreground"
 			>
-				Page name
+				Risksampl
 			</h2>
 		</div>
 		<div class="m-4 rounded-lg bg-slate-50 p-8">
