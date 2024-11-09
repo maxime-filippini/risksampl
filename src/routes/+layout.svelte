@@ -14,7 +14,7 @@
 		<div class="flex h-12 w-full items-center gap-4 bg-background px-4">
 			<Sidebar.Trigger />
 			<h2
-				class="text-md font-normal text-sidebar-accent-foreground duration-200 hover:text-sidebar-foreground"
+				class="text-md font-semibold text-sidebar-accent-foreground duration-200 hover:text-sidebar-foreground"
 			>
 				Risksampl
 			</h2>
