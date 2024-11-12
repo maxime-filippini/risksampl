@@ -3,9 +3,9 @@
 	import AppSidebar from '$lib/components/app-sidebar.svelte';
 
 	import '../app.css';
-	let { children } = $props();
+	let { children, data } = $props();
 
-	let open = $state(false);
+	let open = $state(true);
 </script>
 
 <Sidebar.Provider {open} controlledOpen onOpenChange={(value) => (open = value)}>
@@ -21,6 +21,7 @@
 		</div>
 		<div class="m-4 rounded-lg bg-slate-50 p-8">
 			{@render children?.()}
+			<p>{data.session === null}</p>
 		</div>
 	</main>
 </Sidebar.Provider>

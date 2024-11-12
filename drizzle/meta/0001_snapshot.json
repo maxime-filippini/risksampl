@@ -1,0 +1,147 @@
+{
+  "id": "46eaf4c9-96dc-4cb4-9313-732053eb1e66",
+  "prevId": "e3f3a486-8c3b-41aa-812a-4a83234a0eec",
+  "version": "7",
+  "dialect": "postgresql",
+  "tables": {
+    "public.portfolio": {
+      "name": "portfolio",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true,
+          "default": "gen_random_uuid()"
+        },
+        "name": {
+          "name": "name",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {},
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {}
+    },
+    "public.securities_to_portfolios": {
+      "name": "securities_to_portfolios",
+      "schema": "",
+      "columns": {
+        "securityId": {
+          "name": "securityId",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "portfolioId": {
+          "name": "portfolioId",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {
+        "securities_to_portfolios_securityId_security_id_fk": {
+          "name": "securities_to_portfolios_securityId_security_id_fk",
+          "tableFrom": "securities_to_portfolios",
+          "tableTo": "security",
+          "columnsFrom": [
+            "securityId"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        },
+        "securities_to_portfolios_portfolioId_portfolio_id_fk": {
+          "name": "securities_to_portfolios_portfolioId_portfolio_id_fk",
+          "tableFrom": "securities_to_portfolios",
+          "tableTo": "portfolio",
+          "columnsFrom": [
+            "portfolioId"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {
+        "securities_to_portfolios_securityId_portfolioId_pk": {
+          "name": "securities_to_portfolios_securityId_portfolioId_pk",
+          "columns": [
+            "securityId",
+            "portfolioId"
+          ]
+        }
+      },
+      "uniqueConstraints": {}
+    },
+    "public.security": {
+      "name": "security",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true,
+          "default": "gen_random_uuid()"
+        },
+        "name": {
+          "name": "name",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "symbol": {
+          "name": "symbol",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {},
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {}
+    },
+    "public.user": {
+      "name": "user",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": false,
+          "default": "gen_random_uuid()"
+        },
+        "name": {
+          "name": "name",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {},
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {}
+    }
+  },
+  "enums": {},
+  "schemas": {},
+  "_meta": {
+    "columns": {},
+    "schemas": {},
+    "tables": {}
+  }
+}
