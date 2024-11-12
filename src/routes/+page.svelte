@@ -4,4 +4,7 @@
 	const { data } = $props();
 </script>
 
-<h1 class="mb-8 text-5xl font-bold">Risksampl</h1>
+<main class="flex flex-col gap-4">
+	<h1 class="text-4xl font-semibold">Risksampl</h1>
+	<p>TBD</p>
+</main>

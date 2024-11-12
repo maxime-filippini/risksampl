@@ -8,23 +8,17 @@ import { eq } from 'drizzle-orm';
 type NewUser = typeof schema.user.$inferInsert;
 
 async function handleSignIn({ user }: { user: User }) {
-	const usersInDb = await db.select().from(schema.user);
-	console.log('New user: ', user);
-	console.log('Users in DB: ', usersInDb);
-
-	if (user.id == undefined) {
+	if (user.email == undefined || user.id == undefined || user.name == undefined) {
 		return false;
 	}
 
 	const in_db = await db
 		.select()
 		.from(schema.user)
-		.where(eq(schema.user.oAuthId, user.id))
+		.where(eq(schema.user.email, user.email))
 		.limit(1);
 
 	if (in_db.length == 0) {
-		console.log('!!!! NEW USER');
-
 		const newUser: NewUser = {
 			name: user.name,
 			email: user.email,
@@ -32,7 +26,6 @@ async function handleSignIn({ user }: { user: User }) {
 		};
 
 		await db.insert(schema.user).values(newUser);
-		console.log('Inserted user!');
 	}
 
 	return true;

@@ -51,6 +51,7 @@
 		"@auth/sveltekit": "^1.7.3",
 		"@hono/zod-validator": "^0.4.1",
 		"@libsql/client": "^0.9.0",
+		"@tanstack/table-core": "^8.20.5",
 		"drizzle-orm": "^0.33.0",
 		"pg": "^8.13.1",
 		"postgres": "^3.4.5",
