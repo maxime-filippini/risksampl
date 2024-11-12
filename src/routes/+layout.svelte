@@ -3,10 +3,10 @@
 	import AppSidebar from '$lib/components/app-sidebar.svelte';
 
 	import '../app.css';
-	import { SignIn } from '@auth/sveltekit/components';
+	import { SignIn, SignOut } from '@auth/sveltekit/components';
 	import * as Card from '$lib/components/ui/card/index.js';
 	import { Button } from '$lib/components/ui/button/index.js';
-
+	import { LogOut } from 'lucide-svelte';
 	let { children, data } = $props();
 
 	let open = $state(true);
@@ -18,11 +18,19 @@
 		<main class="w-full">
 			<div class="flex h-12 w-full items-center gap-4 bg-background px-4">
 				<Sidebar.Trigger />
-				<h2
-					class="text-md font-semibold text-sidebar-accent-foreground duration-200 hover:text-sidebar-foreground"
+				<div class="mr-auto"></div>
+				<!-- <h2
+					class="text-md mr-auto font-semibold text-sidebar-accent-foreground duration-200 hover:text-sidebar-foreground"
 				>
 					Risksampl
-				</h2>
+				</h2> -->
+				<div class="rounded-full bg-black px-4 py-1 text-white">
+					<p>{data.user?.email}</p>
+				</div>
+
+				<SignOut class="flex items-center justify-center">
+					<LogOut slot="submitButton" />
+				</SignOut>
 			</div>
 			<div class="m-4 rounded-lg bg-slate-50 p-8">
 				{@render children?.()}

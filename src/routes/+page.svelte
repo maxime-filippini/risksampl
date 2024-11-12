@@ -4,8 +4,4 @@
 	const { data } = $props();
 </script>
 
-<h1 class="mb-8 text-5xl font-bold">Hello from SvelteKit</h1>
-
-<div>
-	<SignOut />
-</div>
+<h1 class="mb-8 text-5xl font-bold">Risksampl</h1>
