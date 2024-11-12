@@ -42,5 +42,6 @@ export const { handle, signIn, signOut } = SvelteKitAuth({
 	providers: [Google],
 	callbacks: {
 		signIn: handleSignIn
-	}
+	},
+	trustHost: true
 });
