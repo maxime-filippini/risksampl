@@ -1,16 +1,13 @@
 import type { ColumnDef } from '@tanstack/table-core';
 
 export type Security = {
-	id: string;
 	name: string;
 	symbol: string;
+	type: string;
+	currency: string;
 };
 
 export const columns: ColumnDef<Security>[] = [
-	{
-		accessorKey: 'id',
-		header: 'ID'
-	},
 	{
 		accessorKey: 'name',
 		header: 'Name'
@@ -18,5 +15,13 @@ export const columns: ColumnDef<Security>[] = [
 	{
 		accessorKey: 'symbol',
 		header: 'Symbol'
+	},
+	{
+		accessorKey: 'type',
+		header: 'Type'
+	},
+	{
+		accessorKey: 'currency',
+		header: 'Currency'
 	}
 ];

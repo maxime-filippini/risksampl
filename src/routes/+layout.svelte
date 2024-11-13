@@ -8,22 +8,16 @@
 	import { Button } from '$lib/components/ui/button/index.js';
 	import { LogOut } from 'lucide-svelte';
 	let { children, data } = $props();
-
 	let open = $state(true);
 </script>
 
 {#if data.session}
 	<Sidebar.Provider {open} controlledOpen onOpenChange={(value) => (open = value)}>
-		<AppSidebar {open} />
+		<AppSidebar {open} user={data.user} />
 		<main class="w-full">
 			<div class="flex h-12 w-full items-center gap-4 bg-background px-4">
 				<Sidebar.Trigger />
 				<div class="mr-auto"></div>
-				<!-- <h2
-					class="text-md mr-auto font-semibold text-sidebar-accent-foreground duration-200 hover:text-sidebar-foreground"
-				>
-					Risksampl
-				</h2> -->
 				<div class="rounded-full bg-black px-4 py-1 text-white">
 					<p>{data.user?.email}</p>
 				</div>

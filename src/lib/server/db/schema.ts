@@ -11,18 +11,30 @@ import {
 	numeric
 } from 'drizzle-orm/pg-core';
 
+export const role = pgTable('role', {
+	name: text('name').notNull().primaryKey()
+});
+
 export const user = pgTable('user', {
 	id: uuid('id').defaultRandom().primaryKey(),
 	oAuthId: text('oAuthId'),
 	name: varchar('name', { length: 20 }),
 	email: text('email'),
-	registeredOn: timestamp('registeredOn').defaultNow()
+	registeredOn: timestamp('registeredOn').defaultNow(),
+	role: text('role').references(() => role.name)
 });
 
 export const security = pgTable('security', {
 	id: uuid('id').defaultRandom().primaryKey(),
 	name: text('name').notNull(),
-	symbol: text('symbol').notNull()
+	symbol: text('symbol').notNull(),
+	currency: text('currency').notNull(),
+	typeId: uuid('typeId').references(() => securityType.id)
+});
+
+export const securityType = pgTable('securityType', {
+	id: uuid('id').defaultRandom().primaryKey(),
+	type: text('type').notNull()
 });
 
 export const portfolio = pgTable('portfolio', {
@@ -33,8 +45,13 @@ export const portfolio = pgTable('portfolio', {
 		.references(() => user.id, { onDelete: 'no action' })
 });
 
-export const securityRelations = relations(security, ({ many }) => ({
-	securitiesToPortfolio: many(securitiesToPortfolios)
+export const securityTypeRelations = relations(securityType, ({ many }) => ({
+	securities: many(security)
+}));
+
+export const securityRelations = relations(security, ({ many, one }) => ({
+	securitiesToPortfolio: many(securitiesToPortfolios),
+	type: one(securityType)
 }));
 
 export const portfolioRelations = relations(portfolio, ({ many }) => ({

@@ -58,7 +58,18 @@
 		}
 	];
 
-	let { open } = $props();
+	const admin: Category = {
+		name: 'Admin',
+		items: [
+			{
+				title: 'Test',
+				url: '/admin',
+				icon: Receipt
+			}
+		]
+	};
+
+	let { open, user } = $props();
 </script>
 
 {#snippet SidebarMenuItem(item: Item)}
@@ -109,6 +120,9 @@
 			{#each categories as category}
 				{@render SidebarCategory(category)}
 			{/each}
+			{#if user.role == 'admin'}
+				{@render SidebarCategory(admin)}
+			{/if}
 		</Sidebar.Content>
 	</Sidebar.Root>
 </Tooltip.Provider>

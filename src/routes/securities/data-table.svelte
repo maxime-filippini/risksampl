@@ -41,7 +41,7 @@
 	});
 </script>
 
-<div class="rounded-md border">
+<div class="border">
 	<Table.Root class="bg-white">
 		<Table.Header>
 			{#each table.getHeaderGroups() as headerGroup (headerGroup.id)}
