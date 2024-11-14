@@ -15,13 +15,13 @@
 
 {#if data.session}
 	<Sidebar.Provider {open} controlledOpen onOpenChange={(value) => (open = value)}>
-		<AppSidebar {open} user={data.user} />
+		<AppSidebar {open} user={data.session.user} />
 		<main class="w-full">
 			<div class="flex h-12 w-full items-center gap-4 bg-background px-4">
 				<Sidebar.Trigger />
 				<div class="mr-auto"></div>
 				<div class="rounded-full bg-black px-4 py-1 text-white">
-					<p>{data.user?.email}</p>
+					<p>{data.session.user?.email}</p>
 				</div>
 
 				<SignOut class="flex items-center justify-center">
@@ -43,11 +43,12 @@
 				</Card.Header>
 				<Card.Content>
 					<SignIn signInPage="signin" provider="google">
-						<div slot="submitButton">
-							<Button>
-								<img src="/google_logo.svg" alt="Google logo" class="mr-2" />
-								<p>Sign in with Google</p>
-							</Button>
+						<div
+							slot="submitButton"
+							class="flex gap-2 rounded-md bg-black px-4 py-2 text-white hover:bg-slate-800"
+						>
+							<img src="/google_logo.svg" alt="Google logo" class="mr-2" />
+							<p>Sign in with Google</p>
 						</div>
 					</SignIn>
 				</Card.Content>

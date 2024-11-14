@@ -1,40 +1,56 @@
-import { SvelteKitAuth, type User } from '@auth/sveltekit';
+import { eq } from 'drizzle-orm';
+import { SvelteKitAuth, type DefaultSession } from '@auth/sveltekit';
 import Google from '@auth/sveltekit/providers/google';
 
 import { db } from '@/server/db/index.js';
-import * as schema from '$lib/server/db/schema';
-import { eq } from 'drizzle-orm';
+import { DrizzleAdapter } from '@auth/drizzle-adapter';
+import { sessions, users } from '@/server/db/schema';
 
-type NewUser = typeof schema.user.$inferInsert;
-
-async function handleSignIn({ user }: { user: User }) {
-	console.log('sign in callback fired');
-	if (user.email == undefined || user.id == undefined || user.name == undefined) {
-		return false;
+declare module '@auth/sveltekit' {
+	interface Session {
+		user: {
+			role: string;
+		} & DefaultSession['user'];
 	}
-
-	const in_db = await db
-		.select()
-		.from(schema.user)
-		.where(eq(schema.user.email, user.email))
-		.limit(1);
-
-	if (in_db.length == 0) {
-		const newUser: NewUser = {
-			name: user.name,
-			email: user.email,
-			oAuthId: user.id
-		};
-		await db.insert(schema.user).values(newUser);
-	}
-
-	return true;
 }
 
 export const { handle, signIn, signOut } = SvelteKitAuth({
-	providers: [Google],
+	providers: [
+		Google({
+			allowDangerousEmailAccountLinking: true, // Should not need that, but see: https://github.com/nextauthjs/next-auth/issues/11261
+			profile: (profile) => {
+				return {
+					role: 'user',
+					...profile
+				};
+			}
+		})
+	],
+
+	adapter: DrizzleAdapter(db),
+	session: {
+		strategy: 'database'
+	},
 	callbacks: {
-		signIn: handleSignIn
+		async session({ session }) {
+			// For some reason, I cannot get the role from the user passed to
+			// this callback, and I have to fetch it myself
+			const user_ = await db
+				.select({
+					role: users.role
+				})
+				.from(users)
+				.leftJoin(sessions, eq(users.id, sessions.userId))
+				.where(eq(sessions.sessionToken, session.sessionToken))
+				.limit(1);
+
+			if (user_.length != 1) {
+				throw new Error('should not happen');
+			}
+
+			session.user.role = user_[0].role;
+			return session;
+		}
 	},
 	trustHost: true
 });

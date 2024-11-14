@@ -1,6 +1,6 @@
 import { db } from '@/server/db';
 import type { PageServerLoad } from './$types';
-import { portfolio, user } from '@/server/db/schema';
+import { portfolio, users } from '@/server/db/schema';
 import { eq } from 'drizzle-orm';
 import { env } from '$env/dynamic/private';
 
@@ -8,11 +8,11 @@ export const load = (async () => {
 	const queryCustomPtfs = db
 		.select()
 		.from(portfolio)
-		.innerJoin(user, eq(portfolio.userId, user.id));
+		.innerJoin(users, eq(portfolio.userId, users.id));
 	const queryGlobalPtfs = db
 		.select()
 		.from(portfolio)
-		.innerJoin(user, eq(portfolio.userId, env.APP_GLOBAL_USER_ID));
+		.innerJoin(users, eq(portfolio.userId, env.APP_GLOBAL_USER_ID));
 
 	const resCustom = await queryCustomPtfs;
 	const resGlobal = await queryGlobalPtfs;
