@@ -8,6 +8,7 @@ import { eq } from 'drizzle-orm';
 type NewUser = typeof schema.user.$inferInsert;
 
 async function handleSignIn({ user }: { user: User }) {
+	console.log('sign in callback fired');
 	if (user.email == undefined || user.id == undefined || user.name == undefined) {
 		return false;
 	}
@@ -24,7 +25,6 @@ async function handleSignIn({ user }: { user: User }) {
 			email: user.email,
 			oAuthId: user.id
 		};
-
 		await db.insert(schema.user).values(newUser);
 	}
 

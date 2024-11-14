@@ -120,9 +120,9 @@
 			{#each categories as category}
 				{@render SidebarCategory(category)}
 			{/each}
-			{#if user.role == 'admin'}
+			<!-- {#if user.role == 'admin'}
 				{@render SidebarCategory(admin)}
-			{/if}
+			{/if} -->
 		</Sidebar.Content>
 	</Sidebar.Root>
 </Tooltip.Provider>

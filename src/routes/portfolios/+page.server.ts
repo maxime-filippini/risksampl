@@ -8,7 +8,6 @@ export const load = (async () => {
 
 	const res = await query;
 
-	console.log(res);
 	return {
 		portfolios: res,
 		nPtf: res.length

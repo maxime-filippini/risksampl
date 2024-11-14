@@ -9,6 +9,8 @@
 	import { LogOut } from 'lucide-svelte';
 	let { children, data } = $props();
 	let open = $state(true);
+
+	console.log(data.session);
 </script>
 
 {#if data.session}

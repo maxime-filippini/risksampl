@@ -4,7 +4,6 @@ import type { Actions } from './$types';
 
 async function signIn(e: RequestEvent<Partial<Record<string, string>>, string | null>) {
 	const resp = await si(e);
-	console.log('idk');
 	return resp;
 }
 
