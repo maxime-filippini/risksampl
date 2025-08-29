@@ -1,25 +1,41 @@
 from collections.abc import Sequence
 
 import polars as pl
+from sqlalchemy import select
 
+from worker.database import Instrument
 from worker.database import MarketData
 from worker.database import connect
 
 
 def main(argv: Sequence[str] | None = None) -> int:
     df = pl.read_csv("/tmp/data/market_data.csv")
-    items_to_add = df.to_dicts()
-
-    print(f"DataFrame has {len(df)} rows")
-    print("Sample data:")
-    print(df.head())
-    print(f"Columns: {df.columns}")
-    print(f"Schema: {df.schema}")
 
     with connect() as session:
+        insts = session.scalars(select(Instrument)).all()
+        df_insts = pl.DataFrame(
+            [
+                {
+                    "id": str(inst.id),
+                    "ticker": inst.ticker,
+                }
+                for inst in insts
+            ]
+        )
+
+        df_data = df.join(df_insts, left_on="ticker", right_on="ticker").drop("ticker").rename({"id": "instrument_id"})
+
+        items_to_add = df_data.to_dicts()
+
+        print(f"DataFrame has {len(df_data)} rows")
+        print("Sample data:")
+        print(df_data.head())
+        print(f"Columns: {df_data.columns}")
+        print(f"Schema: {df_data.schema}")
+
         if items_to_add:
             from sqlalchemy.dialects.postgresql import insert
-            
+
             try:
                 stmt = insert(MarketData).values(items_to_add)
                 stmt = stmt.on_conflict_do_nothing()
