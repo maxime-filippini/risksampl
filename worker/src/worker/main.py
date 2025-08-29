@@ -1,40 +1,19 @@
 import logging
 from contextlib import asynccontextmanager
-from typing import Any
 
-from apscheduler.events import EVENT_JOB_ERROR, EVENT_JOB_EXECUTED
+from apscheduler.events import EVENT_JOB_ERROR
+from apscheduler.events import EVENT_JOB_EXECUTED
 from apscheduler.jobstores.sqlalchemy import SQLAlchemyJobStore
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
-from apscheduler.triggers.cron import CronTrigger
-from apscheduler.triggers.interval import IntervalTrigger
 from fastapi import FastAPI
-from pydantic_settings import BaseSettings
-from sqlalchemy import create_engine, text
-from sqlalchemy.orm import Session, sessionmaker
+from sqlalchemy import text
+from sqlalchemy.orm import Session
 
-# -------- config --------
-TZ_NAME = "Europe/Luxembourg"
-JOB_ID = "daily-compute"
-LOCK_KEY = 4242
-RUN_HOUR = 3
-RUN_MINUTE = 10
-
-
-class Settings(BaseSettings):
-    DATABASE_URL: str = ""
-    TESTING: bool = True
-
-    def model_post_init(self, context: Any) -> None:
-        self.DATABASE_URL = self.DATABASE_URL.replace("postgres://", "postgresql://", 1)
-        if self.TESTING:
-            self._trigger = IntervalTrigger(seconds=10)
-            return
-
-        self._trigger = CronTrigger(hour=12, minute=0, timezone=TZ_NAME)
-
-
-settings = Settings()
-
+from worker.constants import JOB_ID
+from worker.constants import LOCK_KEY
+from worker.constants import TZ_NAME
+from worker.database import connect
+from worker.settings import settings
 
 logging.basicConfig(
     level=logging.INFO,
@@ -43,8 +22,6 @@ logging.basicConfig(
 log = logging.getLogger("worker")
 
 database_url = settings.DATABASE_URL
-engine = create_engine(database_url)
-SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 
 
 scheduler = AsyncIOScheduler(
@@ -60,21 +37,13 @@ scheduler = AsyncIOScheduler(
 )
 
 
-def connect() -> Session:
-    return SessionLocal()
-
-
 def acquire_leader_lock(session: Session):
-    result = session.execute(
-        text("SELECT pg_try_advisory_lock(:lock_key)"), {"lock_key": LOCK_KEY}
-    )
+    result = session.execute(text("SELECT pg_try_advisory_lock(:lock_key)"), {"lock_key": LOCK_KEY})
     return result.scalar()
 
 
 def release_leader_lock(session: Session):
-    session.execute(
-        text("SELECT pg_advisory_unlock(:lock_key)"), {"lock_key": LOCK_KEY}
-    )
+    session.execute(text("SELECT pg_advisory_unlock(:lock_key)"), {"lock_key": LOCK_KEY})
 
 
 def _job_listener(event):

@@ -7,8 +7,19 @@ requires-python = ">=3.13"
 dependencies = [
     "apscheduler>=3.11.0",
     "fastapi[standard]>=0.116.1",
+    "polars>=1.32.3",
     "psycopg2>=2.9.10",
     "pydantic-settings>=2.10.1",
     "sqlalchemy>=2.0.43",
     "tenacity>=9.1.2",
 ]
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.ruff]
+line-length = 120
+
+[tool.ruff.lint.isort]
+force-single-line = true
