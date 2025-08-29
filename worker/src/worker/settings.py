@@ -13,6 +13,7 @@ class Settings(BaseSettings):
 
     DATABASE_URL: str = ""
     TESTING: bool = True
+    MARKETSTACK_API_KEY: str = ""
 
     def model_post_init(self, context: Any) -> None:
         self.DATABASE_URL = self.DATABASE_URL.replace("postgres://", "postgresql://", 1)

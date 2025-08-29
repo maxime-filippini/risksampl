@@ -3,6 +3,7 @@ import uuid
 from decimal import Decimal
 
 from sqlalchemy import Date
+from sqlalchemy import Float
 from sqlalchemy import ForeignKey
 from sqlalchemy import Numeric
 from sqlalchemy import String
@@ -53,6 +54,22 @@ class Portfolio(Base):
         cascade="all, delete-orphan",
         lazy="selectin",
     )
+
+
+class MarketData(Base):
+    __tablename__ = "market_data"
+
+    date: Mapped[datetime.date] = mapped_column(
+        Date(),
+        primary_key=True,
+    )
+    instrument_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(),
+        ForeignKey("instruments.id", ondelete="CASCADE"),
+        primary_key=True,
+    )
+    data_type: Mapped[str] = mapped_column(String(50))
+    value: Mapped[float] = mapped_column(Float())
 
 
 class Holding(Base):
