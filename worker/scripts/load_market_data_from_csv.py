@@ -7,11 +7,12 @@ from worker.database import connect
 
 
 def main(argv: Sequence[str] | None = None) -> int:
+    df = pl.read_csv("/tmp/data/market_data.csv")
+    items_to_add = df.to_dicts()
+
+    print(len(df))
+
     with connect() as session:
-        df = pl.read_csv("/tmp/data/market_data.csv")
-
-        items_to_add = df.to_dicts()
-
         if items_to_add:
             from sqlalchemy.dialects.postgresql import insert
 
@@ -20,6 +21,7 @@ def main(argv: Sequence[str] | None = None) -> int:
             session.execute(stmt)
             session.commit()
             print(f"Processed {len(items_to_add)} items")
+
         session.commit()
 
     return 0
