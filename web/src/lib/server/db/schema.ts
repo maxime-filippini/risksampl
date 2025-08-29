@@ -9,7 +9,8 @@ import {
 	foreignKey,
 	primaryKey,
 	date,
-	numeric
+	numeric,
+	decimal
 } from 'drizzle-orm/pg-core';
 
 export const alembicVersion = pgTable('alembic_version', {
@@ -91,3 +92,30 @@ export const instrumentsRelations = relations(instruments, ({ many }) => ({
 export const portfoliosRelations = relations(portfolios, ({ many }) => ({
 	holdings: many(holdings)
 }));
+
+export const RequestsTable = pgTable('requests', {
+	id: uuid().primaryKey().notNull(),
+	email: varchar({ length: 255 }).notNull(),
+	request: varchar({ length: 10000 }).notNull()
+});
+
+export const MarketDataTable = pgTable(
+	'market_data',
+	{
+		instrumentId: uuid('instrument_id').notNull(),
+		date: date().notNull(),
+		data_type: varchar({ length: 50 }),
+		value: decimal()
+	},
+	(table) => [
+		foreignKey({
+			columns: [table.instrumentId],
+			foreignColumns: [instruments.id],
+			name: 'instrument_id_fkey'
+		}).onDelete('cascade'),
+		primaryKey({
+			columns: [table.instrumentId, table.date, table.data_type],
+			name: 'pkey'
+		})
+	]
+);

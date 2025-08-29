@@ -8,6 +8,13 @@
       "when": 1756448076120,
       "tag": "0000_workable_agent_zero",
       "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "7",
+      "when": 1756490540924,
+      "tag": "0001_lively_purple_man",
+      "breakpoints": true
     }
   ]
 }
