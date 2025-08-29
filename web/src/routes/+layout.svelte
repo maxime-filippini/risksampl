@@ -2,6 +2,7 @@
 	import '../app.css';
 	import favicon from '$lib/assets/favicon.svg';
 	import Navbar from './Navbar.svelte';
+	import { navigating } from '$app/state';
 
 	let { children } = $props();
 </script>
@@ -12,6 +13,12 @@
 
 <Navbar />
 
-<div class="bg-base-100 p-4 font-mono">
-	{@render children?.()}
+<div class="bg-base-100 px-8 py-24 font-mono">
+	{#if navigating.from}
+		<div class="flex h-screen w-screen items-center justify-center">
+			<span class="loading loading-xl loading-spinner"></span>
+		</div>
+	{:else}
+		{@render children?.()}
+	{/if}
 </div>

@@ -43,7 +43,8 @@
 			Next
 		</button>
 	</div>
-	<table class="table table-auto">
+	<div class="overflow-x-auto">
+		<table class="table w-full table-auto">
 		<thead>
 			<tr>
 				<th>#</th>
@@ -63,4 +64,5 @@
 			{/each}
 		</tbody>
 	</table>
+	</div>
 {/if}
