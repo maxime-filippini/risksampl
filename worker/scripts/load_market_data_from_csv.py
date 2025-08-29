@@ -9,7 +9,7 @@ from worker.database import connect
 
 
 def main(argv: Sequence[str] | None = None) -> int:
-    df = pl.read_csv("/tmp/data/market_data.csv")
+    df = pl.read_csv("/tmp/data/market_data_clean.csv")
 
     with connect() as session:
         insts = session.scalars(select(Instrument)).all()
