@@ -17,10 +17,8 @@ def main(argv: Sequence[str] | None = None) -> int:
             from sqlalchemy.dialects.postgresql import insert
 
             stmt = insert(MarketData).values(items_to_add)
-            stmt = stmt.on_conflict_do_nothing(index_elements=["instrument_id", "date", "data_type"])
             session.execute(stmt)
             session.commit()
-            print(f"Processed {len(items_to_add)} items")
 
         session.commit()
 
