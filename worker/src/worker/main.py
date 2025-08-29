@@ -86,10 +86,13 @@ async def lifespan(app: FastAPI):
 
     trigger = settings._trigger
 
+    # Always remove existing job and create a new one to handle redeploys cleanly
     if scheduler.get_job(JOB_ID):
-        scheduler.reschedule_job(JOB_ID, trigger=trigger)
-    else:
-        scheduler.add_job(do_daily_run, trigger=trigger, id=JOB_ID)
+        log.info("Removing existing job %s", JOB_ID)
+        scheduler.remove_job(JOB_ID)
+    
+    log.info("Adding job %s with trigger %s", JOB_ID, trigger)
+    scheduler.add_job(do_daily_run, trigger=trigger, id=JOB_ID)
 
     scheduler.start()
 
