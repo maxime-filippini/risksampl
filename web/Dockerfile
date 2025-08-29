@@ -24,6 +24,8 @@ WORKDIR /app
 # Copy built application from build stage
 COPY --from=base /app/build ./build
 COPY --from=base /app/package.json ./
+COPY --from=base /app/drizzle.config.ts ./
+COPY --from=base /app/drizzle ./drizzle
 COPY --from=base /app/node_modules ./node_modules
 
 # Expose port 3000
