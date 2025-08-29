@@ -84,6 +84,9 @@ async def lifespan(app: FastAPI):
     # Add a listener for completed/failed jobs
     scheduler.add_listener(_job_listener, EVENT_JOB_ERROR | EVENT_JOB_EXECUTED)
 
+    # Start scheduler first so it can load existing jobs from database
+    scheduler.start()
+
     trigger = settings._trigger
 
     # Always remove existing job and create a new one to handle redeploys cleanly
@@ -93,8 +96,6 @@ async def lifespan(app: FastAPI):
     
     log.info("Adding job %s with trigger %s", JOB_ID, trigger)
     scheduler.add_job(do_daily_run, trigger=trigger, id=JOB_ID)
-
-    scheduler.start()
 
     # keep the session open to hold the leader lock for the life of the process
     app.state.leader_session = session
