@@ -36,16 +36,28 @@ def main(argv: Sequence[str] | None = None) -> int:
         if items_to_add:
             from sqlalchemy.dialects.postgresql import insert
 
-            try:
-                stmt = insert(MarketData).values(items_to_add)
-                stmt = stmt.on_conflict_do_nothing()
-                result = session.execute(stmt)
-                session.commit()
-                print(f"Successfully inserted {result.rowcount} rows")
-            except Exception as e:
-                print(f"Error inserting data: {e}")
-                session.rollback()
-                return 1
+            chunk_size = 1000
+            total_inserted = 0
+            
+            for i in range(0, len(items_to_add), chunk_size):
+                chunk = items_to_add[i:i+chunk_size]
+                
+                try:
+                    stmt = insert(MarketData).values(chunk)
+                    stmt = stmt.on_conflict_do_nothing()
+                    result = session.execute(stmt)
+                    session.commit()
+                    
+                    chunk_inserted = result.rowcount
+                    total_inserted += chunk_inserted
+                    
+                    print(f"Chunk {i//chunk_size + 1}: Inserted {chunk_inserted}/{len(chunk)} rows (Total: {total_inserted})")
+                    
+                except Exception as e:
+                    print(f"Error inserting chunk {i//chunk_size + 1}: {e}")
+                    session.rollback()
+                    
+            print(f"Final total: {total_inserted} rows inserted successfully")
 
     return 0
 
