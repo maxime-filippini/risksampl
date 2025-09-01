@@ -7,12 +7,12 @@ import polars as pl
 
 from worker.database import connect
 
-DB_TABLES_PATH = "data/db"
+DB_TABLES_PATH = pathlib.Path("/tmp/data/db")
 
 
 def main(argv: Sequence[str] | None = None) -> int:
     with connect() as session:
-        for file in pathlib.Path(DB_TABLES_PATH).glob("*.csv"):
+        for file in DB_TABLES_PATH.glob("*.csv"):
             table_name = file.name.removesuffix(".csv")
             df = pl.read_csv(file)
 
