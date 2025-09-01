@@ -49,6 +49,7 @@
 		"vite-plugin-devtools-json": "^1.0.0"
 	},
 	"dependencies": {
+		"@sentry/sveltekit": "^10",
 		"drizzle-orm": "^0.40.0",
 		"echarts": "^6.0.0",
 		"install": "^0.13.0",
