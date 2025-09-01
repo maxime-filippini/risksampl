@@ -21,7 +21,7 @@
 		property="og:description"
 		content="A daily dynamic dashboard to help you contextualize your risk measures by comparing them against other portfolios. Built with ❤️ by Maxime Filippini."
 	/>
-	<meta property="og:image" content="https://risksampl.com/og-image.svg" />
+	<meta name="image" property="og:image" content="https://risksampl.com/og-image.svg" />
 	<meta property="og:image:width" content="1200" />
 	<meta property="og:image:height" content="630" />
 	<meta property="og:site_name" content="Risksampl" />
