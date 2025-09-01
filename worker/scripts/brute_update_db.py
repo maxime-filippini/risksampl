@@ -10,20 +10,35 @@ from worker.database import connect
 DB_TABLES_PATH = pathlib.Path("/tmp/data/db")
 
 
+def load_data(root_path: pathlib.Path):
+    out = {}
+    for file in root_path.glob("*.csv"):
+        table_name = file.name.removesuffix(".csv")
+        df = pl.read_csv(file)
+        out[table_name] = df
+
+    return out
+
+
+def _write_data(session, df: pl.DataFrame, table_name: str):
+    if len(df) < 50:
+        print(f"Dataframe for {table_name} had less than 50 rows. Skipped.")
+        return
+
+    df.write_database(table_name, session)
+
+
 def main(argv: Sequence[str] | None = None) -> int:
     with connect() as session:
-        for file in DB_TABLES_PATH.glob("*.csv"):
-            table_name = file.name.removesuffix(".csv")
-            df = pl.read_csv(file)
+        dfs = load_data(DB_TABLES_PATH)
 
-            # Sanity check
-            if len(df) < 50:
-                print(f"{file.name} had less than 50 rows. Skipped.")
-                continue
-
-            df.write_database(table_name, session, if_table_exists="replace")
-
-            print(f"Replaced {table_name} with {len(df)} rows.")
+        _write_data(session, dfs["instruments"], "instruments")
+        _write_data(session, dfs["portfolios"], "portfolios")
+        _write_data(session, dfs["investments"], "investments")
+        _write_data(session, dfs["market_data"], "market_data")
+        _write_data(session, dfs["ptf_comp"], "ptf_comp")
+        _write_data(session, dfs["ptf_values"], "ptf_values")
+        _write_data(session, dfs["measures"], "measures")
 
     return 0
 
