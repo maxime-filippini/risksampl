@@ -58,7 +58,9 @@
 			{@const portfoliosInClass =
 				assetClass === 'All' ? portfolios : portfolios.filter((p) => p.assetClass === assetClass)}
 
-			<label class="flex cursor-pointer items-center space-x-2 rounded border bg-base-200/30 p-3">
+			<label
+				class="flex cursor-pointer items-center space-x-2 rounded border bg-base-200/30 p-3 max-sm:w-full"
+			>
 				<input
 					type="radio"
 					name="assetClassSelection"

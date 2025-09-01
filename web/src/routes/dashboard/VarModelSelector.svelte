@@ -33,10 +33,8 @@
 
 	<div class="flex flex-wrap gap-3 lg:flex-col lg:flex-nowrap">
 		{#each varModels as model (model.id)}
-			<div class="tooltip tooltip-top" data-tip={model.tooltip}>
-				<label
-					class="flex cursor-pointer items-center space-x-2 rounded border bg-base-200/30 p-3 lg:w-full"
-				>
+			<div class="max-sm:w-full sm:tooltip sm:tooltip-top" data-tip={model.tooltip}>
+				<label class="flex cursor-pointer items-center space-x-2 rounded border bg-base-200/30 p-3">
 					<input
 						type="radio"
 						name="modelselection"

@@ -1,4 +1,4 @@
-<div class="mx-auto -mt-24 flex h-screen max-w-3xl flex-col items-center justify-center gap-4">
+<div class="mx-auto flex max-w-3xl flex-col items-center justify-center gap-4 py-12">
 	<h1 class="text-center text-4xl font-semibold">Welcome to Risksampl</h1>
 	<h2 class="text-center text-2xl">
 		A daily dynamic dashboard to help you contextualize your risk measures by comparing them against

@@ -55,7 +55,7 @@
 
 		const option: EChartsCoreOption = {
 			title: {
-				text: 'YTD Portfolio Performance (%)',
+				text: 'YTD Portfolio Performance',
 				left: 'center',
 				textStyle: {
 					fontSize: 16,
@@ -110,7 +110,7 @@
 </script>
 
 <div class="w-full overflow-x-auto">
-	<div class="min-w-[600px] flex justify-center">
+	<div class="flex min-w-[600px] justify-center">
 		<Chart option={chartOption} height={600} />
 	</div>
 </div>
