@@ -1,0 +1,1 @@
+ALTER TABLE "ptf_comp" DROP COLUMN "value";

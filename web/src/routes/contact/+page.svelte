@@ -7,18 +7,18 @@
 	let formErrors = form?.errors?.formErrors;
 </script>
 
-<div class="mx-auto w-3xl">
+<div class="mx-auto flex max-w-5xl flex-col gap-4">
+	<h1 class="text-2xl font-semibold">Contact me</h1>
+
 	{#if form?.success}
 		<p>Request sent successfully!</p>
 	{:else}
 		<p>
-			A new feature you would like? Any other request? Fill the form below and we will get back to
-			you!
+			You ran into a bug or you would like a new feature implemented? Fill the form below and we
+			will get back to you!
 		</p>
 
-		<div class="my-8"></div>
 		<form method="POST" action="?/contact">
-			<h1 class="mt-12 mb-4 text-xl font-semibold">Contact us</h1>
 			<fieldset class="fieldset w-full">
 				<legend class="fieldset-legend">Your email address</legend>
 				<input name="email" class="input w-full" type="email" value={form?.data?.email ?? ''} />
@@ -29,14 +29,14 @@
 				{/if}
 			</fieldset>
 			<fieldset class="fieldset w-full">
-				<legend class="fieldset-legend">Request type</legend>
+				<legend class="fieldset-legend">Your request</legend>
 				<select
 					name="requestType"
 					class="select w-full"
 					value={form?.data?.requestType ?? 'keep-me-posted'}
 				>
 					<option value="keep-me-posted">Keep me posted of future updates</option>
-					<option value="new-feature">New feature</option>
+					<option value="new-feature">I would like a new feature</option>
 					<option value="doesnt-work">Something doesn't work</option>
 					<option value="other-inquiry">Other inquiry</option>
 				</select>
@@ -47,7 +47,7 @@
 				{/if}
 			</fieldset>
 			<fieldset class="fieldset">
-				<legend class="fieldset-legend">Your request (Optional)</legend>
+				<legend class="fieldset-legend">Additional details (Optional)</legend>
 				<textarea
 					class="textarea w-full"
 					name="request"

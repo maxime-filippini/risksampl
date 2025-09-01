@@ -1,12 +1,15 @@
 <script lang="ts" generics="Cols extends Record<string, string>">
+	import type { Snippet } from 'svelte';
+
 	type RowFrom<C> = { [K in keyof C]: unknown };
 
 	interface Props {
 		pageSize: number;
 		columns: Cols;
 		data: RowFrom<Cols>[];
+		actions?: (row: RowFrom<Cols>, index: number) => Snippet;
 	}
-	let { pageSize, data, columns }: Props = $props();
+	let { pageSize, data, columns, actions }: Props = $props();
 
 	let currentPage = $state(0);
 
@@ -45,24 +48,32 @@
 	</div>
 	<div class="overflow-x-auto">
 		<table class="table w-full table-auto">
-		<thead>
-			<tr>
-				<th>#</th>
-				{#each Object.values(columns) as col}
-					<th>{col}</th>
-				{/each}
-			</tr>
-		</thead>
-		<tbody>
-			{#each page as inst, ix}
-				<tr class="duration-100 hover:bg-base-300">
-					<td>{currentPage * pageSize + ix + 1}</td>
-					{#each Object.keys(columns) as col}
-						<td>{inst[col as keyof typeof inst]}</td>
+			<thead>
+				<tr>
+					<th>#</th>
+					{#each Object.values(columns) as col}
+						<th>{col}</th>
 					{/each}
+					{#if actions}
+						<th>Actions</th>
+					{/if}
 				</tr>
-			{/each}
-		</tbody>
-	</table>
+			</thead>
+			<tbody>
+				{#each page as inst, ix}
+					<tr class="duration-100 hover:bg-base-300">
+						<td>{currentPage * pageSize + ix + 1}</td>
+						{#each Object.keys(columns) as col}
+							<td>{inst[col as keyof typeof inst]}</td>
+						{/each}
+						{#if actions}
+							<td class="">
+								{@render actions(inst, currentPage * pageSize + ix)}
+							</td>
+						{/if}
+					</tr>
+				{/each}
+			</tbody>
+		</table>
 	</div>
 {/if}

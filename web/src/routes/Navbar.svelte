@@ -15,11 +15,12 @@
 </script>
 
 <div
-	class="bg-opacity-100 fixed z-50 navbar flex w-full flex-row justify-between border-b border-base-200 bg-base-200 px-4 font-mono shadow-sm"
+	class="fixed z-50 navbar flex w-full flex-row justify-between border-b border-base-200 bg-base-200 px-4 font-mono shadow-sm"
 >
 	<a class="btn mr-auto text-xl btn-ghost" href="/">Risksampl</a>
-	<div class="mr-0 hidden w-0 flex-row gap-8 sm:flex sm:ml-auto sm:w-auto sm:px-8">
+	<div class="mr-0 hidden w-0 flex-row gap-8 sm:ml-auto sm:flex sm:w-auto sm:px-8">
 		<a class="link link-hover" href="/dashboard">Dashboard</a>
+		<a class="link link-hover" href="/portfolios">Portfolios</a>
 		<a class="link link-hover" href="/coverage">Coverage</a>
 		<a class="link link-hover" href="/contact">Contact</a>
 	</div>
@@ -46,6 +47,8 @@
 	<div class="fixed top-16 right-0 left-0 z-40 border-b border-base-200 bg-base-200 sm:hidden">
 		<div class="flex flex-col gap-2 p-4">
 			<a class="link py-2 link-hover" href="/dashboard" onclick={toggleMobileMenu}>Dashboard</a>
+			<a class="link py-2 link-hover" href="/portfolios" onclick={toggleMobileMenu}>Portfolios</a>
+
 			<a class="link py-2 link-hover" href="/coverage" onclick={toggleMobileMenu}>Coverage</a>
 			<a class="link py-2 link-hover" href="/contact" onclick={toggleMobileMenu}>Contact</a>
 		</div>

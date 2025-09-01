@@ -1,6 +1,9 @@
+import { db } from '$lib/server/db';
+import { RequestsTable } from '$lib/server/db/schema';
 import type { Actions, PageServerLoad } from './$types';
 import { fail } from '@sveltejs/kit';
 import * as z from 'zod';
+import { randomUUID } from 'crypto';
 
 const ContactSchema = z.object({
 	email: z.email(),
@@ -31,6 +34,12 @@ export const actions: Actions = {
 				data: formData
 			});
 		} else {
+			await db.insert(RequestsTable).values({
+				id: randomUUID(),
+				email: result.data.email,
+				request: result.data.request
+			});
+
 			return { success: true, errors: null };
 		}
 	}

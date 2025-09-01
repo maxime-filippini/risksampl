@@ -1,8 +1,22 @@
 <script lang="ts">
+	import Dashboard from './Dashboard.svelte';
+
 	const { data } = $props();
 </script>
 
-<h1>
-	<span class="text-2xl font-semibold">Dashboard</span>
-	<span class="font-base text-base">(as of {data.today})</span>
-</h1>
+<div class="flex flex-col lg:fixed lg:inset-0 lg:top-16 lg:overflow-hidden">
+	<div class="flex-shrink-0 border-b border-gray-200 px-6 py-4">
+		<h1>
+			<span class="text-2xl font-semibold">Dashboard</span>
+			<span class="font-base text-base">(as of {data.lastBusinessDayStr})</span>
+		</h1>
+	</div>
+
+	<div class="flex-1 overflow-hidden">
+		<Dashboard
+			ptfs={data.ptfs}
+			ytdPerformance={data.ytdPerformance}
+			dayMeasures={data.dayMeasures}
+		/>
+	</div>
+</div>
