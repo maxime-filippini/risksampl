@@ -17,10 +17,9 @@
 
 <div class="bg-base-100 px-8 py-24 font-mono">
 	{#if navigating.from}
-		<div class="flex h-screen w-screen items-center justify-center">
+		<div class="fixed inset-0 top-16 flex items-center justify-center bg-base-100 z-50">
 			<span class="loading loading-xl loading-spinner"></span>
 		</div>
-	{:else}
-		{@render children?.()}
 	{/if}
+	{@render children?.()}
 </div>

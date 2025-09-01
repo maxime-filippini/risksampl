@@ -109,6 +109,8 @@
 	});
 </script>
 
-<div class="w-full">
-	<Chart option={chartOption} height={600} />
+<div class="w-full overflow-x-auto">
+	<div class="min-w-[600px] flex justify-center">
+		<Chart option={chartOption} height={600} />
+	</div>
 </div>
