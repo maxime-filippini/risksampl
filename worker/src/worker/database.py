@@ -3,7 +3,6 @@ import uuid
 from decimal import Decimal
 
 from sqlalchemy import Date
-from sqlalchemy import Float
 from sqlalchemy import ForeignKey
 from sqlalchemy import Numeric
 from sqlalchemy import String
@@ -36,49 +35,90 @@ class Instrument(Base):
     __tablename__ = "instruments"
 
     id: Mapped[uuid.UUID] = mapped_column(UUID(), default=uuid.uuid4, primary_key=True, index=True)
-    name: Mapped[str] = mapped_column(String(255), unique=True)
+    name: Mapped[str] = mapped_column(String(255), unique=True, nullable=False)
     ticker: Mapped[str] = mapped_column(String(10), unique=True, index=True, nullable=False)
     currency: Mapped[str] = mapped_column(String(3), nullable=False)
+
+    investments: Mapped[list["Investment"]] = relationship(
+        "Investment",
+        back_populates="instrument",
+        cascade="all, delete-orphan",
+    )
 
 
 class Portfolio(Base):
     __tablename__ = "portfolios"
 
     id: Mapped[uuid.UUID] = mapped_column(UUID(), default=uuid.uuid4, primary_key=True, index=True)
-    name: Mapped[str] = mapped_column(String(100), unique=True)
+    name: Mapped[str] = mapped_column(String(100), unique=True, nullable=False)
     currency: Mapped[str] = mapped_column(String(3), nullable=False)
 
-    holdings: Mapped[list["Holding"]] = relationship(
-        "Holding",
+    investments: Mapped[list["Investment"]] = relationship(
+        "Investment",
         back_populates="portfolio",
         cascade="all, delete-orphan",
-        lazy="selectin",
     )
+
+
+class Investment(Base):
+    __tablename__ = "investments"
+
+    id: Mapped[uuid.UUID] = mapped_column(UUID(), default=uuid.uuid4, primary_key=True, nullable=False)
+    date: Mapped[datetime.date] = mapped_column(Date(), nullable=False, index=True)
+    portfolio_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(),
+        ForeignKey("portfolios.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+    instrument_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(),
+        ForeignKey("instruments.id", ondelete="CASCADE"),
+        nullable=False,
+    )
+    quantity: Mapped[Decimal] = mapped_column(Numeric(precision=20, scale=8), nullable=False)
+
+    portfolio: Mapped["Portfolio"] = relationship("Portfolio", back_populates="investments")
+    instrument: Mapped["Instrument"] = relationship("Instrument", back_populates="investments")
 
 
 class MarketData(Base):
     __tablename__ = "market_data"
 
-    date: Mapped[datetime.date] = mapped_column(
-        Date(),
-        primary_key=True,
-    )
     instrument_id: Mapped[uuid.UUID] = mapped_column(
         UUID(),
         ForeignKey("instruments.id", ondelete="CASCADE"),
         primary_key=True,
     )
-    data_type: Mapped[str] = mapped_column(String(50))
-    value: Mapped[float] = mapped_column(Float())
-
-
-class Holding(Base):
-    __tablename__ = "holdings"
-
-    as_of: Mapped[datetime.date] = mapped_column(
+    date: Mapped[datetime.date] = mapped_column(
         Date(),
         primary_key=True,
-        default=datetime.date.today,
+    )
+    data_type: Mapped[str] = mapped_column(String(50), primary_key=True)
+    value: Mapped[Decimal] = mapped_column(Numeric())
+
+
+class PortfolioValue(Base):
+    __tablename__ = "ptf_values"
+
+    date: Mapped[datetime.date] = mapped_column(
+        Date(),
+        primary_key=True,
+    )
+    portfolio_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(),
+        ForeignKey("portfolios.id", ondelete="CASCADE"),
+        primary_key=True,
+    )
+    value: Mapped[Decimal] = mapped_column(Numeric(precision=20, scale=8), nullable=False)
+
+
+class PortfolioComposition(Base):
+    __tablename__ = "ptf_comp"
+
+    date: Mapped[datetime.date] = mapped_column(
+        Date(),
+        primary_key=True,
     )
     portfolio_id: Mapped[uuid.UUID] = mapped_column(
         UUID(),
@@ -92,5 +132,18 @@ class Holding(Base):
     )
     quantity: Mapped[Decimal] = mapped_column(Numeric(precision=20, scale=8), nullable=False)
 
-    portfolio: Mapped["Portfolio"] = relationship("Portfolio", back_populates="holdings")
-    instrument: Mapped["Instrument"] = relationship("Instrument")
+
+class Measure(Base):
+    __tablename__ = "measures"
+
+    portfolio_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(),
+        ForeignKey("portfolios.id", ondelete="CASCADE"),
+        primary_key=True,
+    )
+    date: Mapped[datetime.date] = mapped_column(
+        Date(),
+        primary_key=True,
+    )
+    measure: Mapped[str] = mapped_column(String(50), primary_key=True)
+    value: Mapped[Decimal] = mapped_column(Numeric())

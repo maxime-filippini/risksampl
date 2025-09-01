@@ -1,0 +1,355 @@
+{
+  "date": "2025-06-30",
+  "data": {
+    "ea60a615-6c56-4c4c-936f-6727f641fd89": [
+      {
+        "instrument_id": "70e9623b-1ea8-4de7-a8eb-4193d4fc1302",
+        "quantity": 1000.0,
+        "value": 17630.0
+      }
+    ],
+    "267b92c2-aa8a-49fe-bf5c-9a2d2cc74924": [
+      {
+        "instrument_id": "c6d94933-a248-4df5-a56e-b2c0c08fe450",
+        "quantity": 1000.0,
+        "value": 104480.0
+      }
+    ],
+    "f0085a41-9c45-4bd5-8a9b-456a3115f72b": [
+      {
+        "instrument_id": "727b0b7c-268d-42c4-bb48-11020f53958a",
+        "quantity": 1000.0,
+        "value": 59450.0
+      }
+    ],
+    "eec40028-ed16-4b8c-8d96-72e70d5158f4": [
+      {
+        "instrument_id": "29cec4b9-c146-4ff8-a725-5cf20bea7fef",
+        "quantity": 1000.0,
+        "value": 62360.0
+      }
+    ],
+    "a2d06bf1-3dd4-4293-87a6-62cd3aade349": [
+      {
+        "instrument_id": "fd9f21e1-80be-478c-9fd4-fe1d5011d962",
+        "quantity": 1000.0,
+        "value": 38540.0
+      }
+    ],
+    "2c6a78e0-86dc-4ad1-9cf7-a4a5f6348c09": [
+      {
+        "instrument_id": "c8c98404-6e77-4667-8a5c-c25da42654e1",
+        "quantity": 1000.0,
+        "value": 60560.0
+      }
+    ],
+    "1d08e7c8-f73c-4e6a-98ff-639871fb4cf8": [
+      {
+        "instrument_id": "5817580d-febb-47d3-a1dd-70cae7d5d45f",
+        "quantity": 1000.0,
+        "value": 24700.0
+      }
+    ],
+    "6f7e34d1-0109-4f9e-8aa0-5d4e5f6721e2": [
+      {
+        "instrument_id": "8cdd951a-8d3d-40bb-aa43-761fb1226d81",
+        "quantity": 1000.0,
+        "value": 36760.0
+      }
+    ],
+    "78e37b84-0a65-4f70-a706-ae017593868a": [
+      {
+        "instrument_id": "39a5e158-c52e-447d-a20e-180129350767",
+        "quantity": 1000.0,
+        "value": 109289.99999999999
+      }
+    ],
+    "da0955b6-52f2-4c70-bd60-e3a3794d42dc": [
+      {
+        "instrument_id": "bc594e1a-e7b2-4b5f-bf6d-e53283bb2d0f",
+        "quantity": 1000.0,
+        "value": 28850.0
+      }
+    ],
+    "ce6f327b-247e-4a50-9352-66bc437f6f7b": [
+      {
+        "instrument_id": "3c7f3c30-4848-48ce-b2a5-3fc1b9e31b1e",
+        "quantity": 1000.0,
+        "value": 37510.0
+      }
+    ],
+    "7980bbb5-f4e8-43d5-a0a8-2cde41aa8781": [
+      {
+        "instrument_id": "7edd1534-ecb5-4a73-a3b0-4bcfe6edc0e1",
+        "quantity": 1000.0,
+        "value": 67780.0
+      }
+    ],
+    "3a844f39-4f69-452c-a4c1-d988e27819ee": [
+      {
+        "instrument_id": "0e98f7d8-5fe7-4de8-a8a3-46c342374abe",
+        "quantity": 1000.0,
+        "value": 107810.0
+      }
+    ],
+    "19008197-3f49-42f3-a057-63a0be83ee71": [
+      {
+        "instrument_id": "fe4ea713-6883-489f-bd81-8b3e1edaa46f",
+        "quantity": 1000.0,
+        "value": 43100.0
+      }
+    ],
+    "7bb42e63-eb49-4855-8aec-af08df5f16ee": [
+      {
+        "instrument_id": "e24878f5-b374-4d80-ba37-234362ea1ec9",
+        "quantity": 1000.0,
+        "value": 45440.0
+      }
+    ],
+    "ca366c28-aff3-45f6-ae3b-37079cdc445c": [
+      {
+        "instrument_id": "6444a8ec-8304-4918-a36d-0766727c57d7",
+        "quantity": 1000.0,
+        "value": 424579.99999999994
+      }
+    ],
+    "64ae58df-139d-4425-a307-05072edfc484": [
+      {
+        "instrument_id": "929e3e08-574e-4b80-ab1d-57bdef534444",
+        "quantity": 1000.0,
+        "value": 64850.0
+      }
+    ],
+    "73b9f260-1100-469b-99a2-3a5f9e64ed92": [
+      {
+        "instrument_id": "56cfb131-8c13-4e90-a0e9-55f93ece20d1",
+        "quantity": 1000.0,
+        "value": 94770.0
+      }
+    ],
+    "52f40e28-a1bb-443a-81ff-de92de67dd7d": [
+      {
+        "instrument_id": "b784bce9-a223-49a4-9c09-9f381cabaf04",
+        "quantity": 1000.0,
+        "value": 89390.0
+      }
+    ],
+    "a9ed8979-b384-46f9-a1d8-71fce6a4c371": [
+      {
+        "instrument_id": "22440153-44ce-4830-a6b1-1d7232e0c479",
+        "quantity": 1000.0,
+        "value": 109610.0
+      }
+    ],
+    "23ad6712-e7e8-4db5-9999-bca22e4dbd2b": [
+      {
+        "instrument_id": "588cf2ec-8e51-4360-8d55-8c807abd11c8",
+        "quantity": 1000.0,
+        "value": 99199.99999999999
+      }
+    ],
+    "021c0c4c-f691-45d3-ba82-f2b3a650dff8": [
+      {
+        "instrument_id": "a42d14ef-4680-4d48-ae4e-c6f753cc2ee1",
+        "quantity": 1000.0,
+        "value": 46310.0
+      }
+    ],
+    "b56a59f5-0e5d-4e2c-92cd-61236fb92c8a": [
+      {
+        "instrument_id": "559e6146-595c-4ea6-a489-0415f41911c3",
+        "quantity": 1000.0,
+        "value": 48720.0
+      }
+    ],
+    "4ff1baf0-73ed-4345-9805-eb35a9a7b318": [
+      {
+        "instrument_id": "f48b1e9f-e2d6-442a-acf6-2ba36202a71c",
+        "quantity": 1000.0,
+        "value": 83480.0
+      }
+    ],
+    "f5764652-eca7-48f2-b621-b5fdff1de41f": [
+      {
+        "instrument_id": "29fcfd80-cc50-483f-b2f1-a7099277e15a",
+        "quantity": 1000.0,
+        "value": 61570.0
+      }
+    ],
+    "594e712e-88b9-4bd8-ae5e-0ea97fca8af4": [
+      {
+        "instrument_id": "455dda36-171f-4412-baf4-3674c6e3ece8",
+        "quantity": 1000.0,
+        "value": 84890.0
+      }
+    ],
+    "d7da851b-20c5-4de0-9c93-68a9f16fb55e": [
+      {
+        "instrument_id": "02f2fb63-27d1-43bf-953d-7249c482b082",
+        "quantity": 1000.0,
+        "value": 60030.00000000001
+      }
+    ],
+    "cdbad104-f1fb-4ca9-9360-a4e865520710": [
+      {
+        "instrument_id": "491f4737-7acc-4f1a-b486-e6cc014c5e76",
+        "quantity": 1000.0,
+        "value": 110040.0
+      }
+    ],
+    "925a0ff5-3258-44c4-86eb-3de00c23066a": [
+      {
+        "instrument_id": "b943b709-b920-44a1-a0c2-c056b667ef98",
+        "quantity": 1000.0,
+        "value": 22040.0
+      }
+    ],
+    "67756108-d9ee-44e0-ac13-0e133d3e39c0": [
+      {
+        "instrument_id": "07602a17-b596-47d1-adc2-bda6d3cda617",
+        "quantity": 1000.0,
+        "value": 77180.0
+      }
+    ],
+    "b872c12a-2db2-4898-a52d-4f09e8254dba": [
+      {
+        "instrument_id": "27fb9e0c-145d-400a-aa73-1057ff3cb314",
+        "quantity": 1000.0,
+        "value": 72680.0
+      }
+    ],
+    "c681d170-805f-43f4-928b-86e1aa273753": [
+      {
+        "instrument_id": "8da68d05-90e7-47c9-a779-05fce4a165ee",
+        "quantity": 1000.0,
+        "value": 13260.0
+      }
+    ],
+    "0b56cedc-5e07-4f8e-b6bf-b25a195b2786": [
+      {
+        "instrument_id": "86e48142-757b-4e0d-8f90-f7d70b0445ae",
+        "quantity": 1000.0,
+        "value": 93890.0
+      }
+    ],
+    "f4dd8467-36cf-4d10-93d3-a0699ae8eb70": [
+      {
+        "instrument_id": "c135cb6f-2a23-4032-ae80-856a310752a8",
+        "quantity": 1000.0,
+        "value": 74970.0
+      }
+    ],
+    "ea975ea7-5bc4-4584-ad79-ea24d16d2b21": [
+      {
+        "instrument_id": "cdf36a61-82d3-4b48-b581-6d77990bd275",
+        "quantity": 1000.0,
+        "value": 32259.999999999996
+      }
+    ],
+    "0693a3b1-74d0-4a6d-aca0-68e05e949d72": [
+      {
+        "instrument_id": "b4dc9f2c-b477-415f-91a8-36ddf62043e4",
+        "quantity": 1000.0,
+        "value": 92620.0
+      }
+    ],
+    "e01b0257-f0ea-40a3-b91d-434677798cec": [
+      {
+        "instrument_id": "45063710-ef21-46d9-9cc7-beaad4766e7b",
+        "quantity": 1000.0,
+        "value": 51090.0
+      }
+    ],
+    "16cc08b3-c767-464d-8d9c-573d4d80c57d": [
+      {
+        "instrument_id": "5ce44cf1-fbc8-4224-b693-db704e6fae0c",
+        "quantity": 1000.0,
+        "value": 620900.0
+      }
+    ],
+    "0b209d5c-12ed-48af-a597-b1e22f7780b6": [
+      {
+        "instrument_id": "41712141-41c4-4e22-83d1-8cc45c44fff1",
+        "quantity": 1000.0,
+        "value": 48240.0
+      }
+    ],
+    "0a501045-acfb-41c3-ba19-e64d56093543": [
+      {
+        "instrument_id": "71b05bd8-7aa9-4785-9e99-16dc7a4ebca1",
+        "quantity": 1000.0,
+        "value": 62020.0
+      }
+    ],
+    "bab4b781-3003-427b-8985-cef95d3dd87e": [
+      {
+        "instrument_id": "1fa0820d-a943-4d8a-8394-adafc9bb81cd",
+        "quantity": 1000.0,
+        "value": 38970.0
+      }
+    ],
+    "55510bc4-da2e-43ec-a304-a9d080861be4": [
+      {
+        "instrument_id": "1ca5977c-2cd8-48bc-983f-681412c0d309",
+        "quantity": 1000.0,
+        "value": 68700.0
+      }
+    ],
+    "8916932a-fe16-49e1-86b7-e99113a63df1": [
+      {
+        "instrument_id": "a421b6cb-056c-42eb-96ba-c85c8f35e654",
+        "quantity": 1000.0,
+        "value": 53750.0
+      }
+    ],
+    "e3a50d76-dcb7-4377-8ad3-8ff9f442752d": [
+      {
+        "instrument_id": "fb39c249-6cb1-47b6-9220-6c0f8daac13a",
+        "quantity": 1000.0,
+        "value": 26209.999999999996
+      }
+    ],
+    "74623cfa-69a7-43c4-a6e5-3beb9b5e401b": [
+      {
+        "instrument_id": "35a6016b-daf4-40a4-84d1-c5492ae12d0c",
+        "quantity": 1000.0,
+        "value": 67120.0
+      }
+    ],
+    "00e01b8c-84f4-4a73-9345-ed2ad74b96b2": [
+      {
+        "instrument_id": "50d64c2b-1484-41db-8095-d18e20c5f436",
+        "quantity": 1000.0,
+        "value": 55679.99999999999
+      }
+    ],
+    "fe1ab00b-670a-44e8-bd02-71b5ef304613": [
+      {
+        "instrument_id": "49f41541-e632-46f4-bb42-7cbfaf0b0fe9",
+        "quantity": 1000.0,
+        "value": 66200.0
+      }
+    ],
+    "4daf79fe-feb9-4c5a-ba1f-a67b965c679a": [
+      {
+        "instrument_id": "6c125ed4-4a90-41c4-b389-226eb7e93b07",
+        "quantity": 1000.0,
+        "value": 88250.0
+      }
+    ],
+    "d36a08ce-9974-4a76-a6bb-7cf37fc22dfa": [
+      {
+        "instrument_id": "3c61196e-5014-4a5d-87b8-9b413c9de878",
+        "quantity": 1000.0,
+        "value": 135040.0
+      }
+    ],
+    "48164b2c-2eca-4d1e-81c7-f8c8115745d5": [
+      {
+        "instrument_id": "b2409b2e-2e42-4c6e-8bc5-0b74aea21798",
+        "quantity": 1000.0,
+        "value": 81060.0
+      }
+    ]
+  }
+}
