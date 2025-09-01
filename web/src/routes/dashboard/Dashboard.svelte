@@ -5,6 +5,7 @@
 	import VarModelSelector from './VarModelSelector.svelte';
 	import VarComparisonChart from './VarComparisonChart.svelte';
 	import PortfolioSelector2 from './PortfolioSelector2.svelte';
+	import ExAnteVolChart from './ExAnteVolChart.svelte';
 
 	interface DayMeasure {
 		portfolioId: string;
@@ -63,9 +64,11 @@
 
 <!-- The dashboard -->
 
-<div class="flex flex-col h-full lg:flex-row">
+<div class="flex h-full flex-col lg:flex-row">
 	<!-- Fixed left sidebar -->
-	<div class="w-full overflow-x-auto border-r border-base-200 p-6 lg:w-80 lg:overflow-y-auto lg:overflow-x-visible">
+	<div
+		class="w-full overflow-x-auto border-r border-base-200 p-6 lg:w-80 lg:overflow-x-visible lg:overflow-y-auto"
+	>
 		<div class="space-y-8">
 			<PortfolioSelector2 portfolios={ptfs} onSelectionChange={handleSelectionChange} />
 			<VarModelSelector selectedModel={selectedVarModel} onModelChange={handleVarModelChange} />
@@ -82,6 +85,7 @@
 				{selectedPortfolioIds}
 				{selectedVarModel}
 			/>
+			<ExAnteVolChart {dayMeasures} portfolios={ptfs} {selectedPortfolioIds} />
 		</div>
 	</div>
 </div>

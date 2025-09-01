@@ -16,7 +16,7 @@
 	<!-- Open Graph / Facebook -->
 	<meta property="og:type" content="website" />
 	<meta property="og:url" content="https://risksampl.com/" />
-	<meta property="og:title" content="Risksampl - Daily Dynamic Risk Dashboard" />
+	<meta property="og:title" content="Risksampl - Daily risk dashboard" />
 	<meta
 		property="og:description"
 		content="A daily dynamic dashboard to help you contextualize your risk measures by comparing them against other portfolios. Built with ❤️ by Maxime Filippini."
@@ -25,17 +25,6 @@
 	<meta property="og:image:width" content="1200" />
 	<meta property="og:image:height" content="630" />
 	<meta property="og:site_name" content="Risksampl" />
-
-	<!-- Twitter -->
-	<meta name="twitter:card" content="summary_large_image" />
-	<meta name="twitter:url" content="https://risksampl.com/" />
-	<meta name="twitter:title" content="Risksampl - Daily Dynamic Risk Dashboard" />
-	<meta
-		name="twitter:description"
-		content="A daily dynamic dashboard to help you contextualize your risk measures by comparing them against other portfolios. Built with ❤️ by Maxime Filippini."
-	/>
-	<meta name="twitter:image" content="https://risksampl.com/og-image.svg" />
-	<meta name="twitter:creator" content="@maxfilippini" />
 
 	<!-- Additional SEO -->
 	<meta name="author" content="Maxime Filippini" />

@@ -92,7 +92,7 @@
 					data: data.map((d) => ({
 						value: parseFloat(d.value.toFixed(2)),
 						itemStyle: {
-							color: '#ef4444' // Red color for VaR (risk)
+							color: '#a6d189'
 						}
 					})),
 					emphasis: {

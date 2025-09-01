@@ -2,11 +2,11 @@
 	import Chart from './Chart.svelte';
 	import type { EChartsCoreOption } from 'echarts/core';
 
-	interface YTDPerformance {
+	interface DayMeasure {
 		portfolioId: string;
-		startValue: number;
-		endValue: number;
-		performance: number;
+		date: string;
+		measure: string | null;
+		value: string | null;
 	}
 
 	interface Portfolio {
@@ -16,59 +16,55 @@
 	}
 
 	interface Props {
-		ytdPerformance: YTDPerformance[];
+		dayMeasures: DayMeasure[];
 		portfolios: Portfolio[];
 		selectedPortfolioIds: string[];
 	}
 
-	let { ytdPerformance, portfolios, selectedPortfolioIds }: Props = $props();
+	let { dayMeasures, portfolios, selectedPortfolioIds }: Props = $props();
+
+	let volMeasures = $derived(dayMeasures.filter((item) => item.measure == 'ex_ante_vol'));
 
 	const chartOption = $derived.by(() => {
 		const portfolioMap = new Map(portfolios.map((p) => [p.id, p.name]));
 
-		const filteredPerformance = ytdPerformance.filter((perf) =>
-			selectedPortfolioIds.includes(perf.portfolioId)
+		const filteredMeasures = volMeasures.filter((measure) =>
+			selectedPortfolioIds.includes(measure.portfolioId)
 		);
 
-		const data = filteredPerformance
-			.sort((a, b) => a.performance - b.performance)
-			.map((perf) => ({
-				name: portfolioMap.get(perf.portfolioId) || perf.portfolioId,
-				value: perf.performance,
-				itemStyle: {
-					color: perf.performance >= 0 ? '#a6d189' : '#e78284'
-				}
-			}));
-
-		let isLongSeries = data.length > 5;
-
-		let tooltip = {
-			trigger: 'axis',
-			axisPointer: {
-				type: 'shadow'
-			},
-			formatter: (params: any) => {
-				const data = params[0];
-				return `${data.name}<br/>Performance: ${data.value.toFixed(2)}%`;
-			}
-		};
+		const data = filteredMeasures
+			.map((measure) => ({
+				name: portfolioMap.get(measure.portfolioId) || measure.portfolioId,
+				value: Math.abs(parseFloat(measure.value || '0')) * 100, // Convert to percentage and take absolute value
+				portfolioId: measure.portfolioId
+			}))
+			.sort((a, b) => b.value - a.value); // Sort from highest to lowest VaR
 
 		const option: EChartsCoreOption = {
 			title: {
-				text: 'Year-to-date portfolio performance',
+				text: `Annualized ex-ante volatility`,
 				left: 'center',
 				textStyle: {
 					fontSize: 16,
 					fontWeight: 'bold'
 				}
 			},
-			tooltip: tooltip,
+			tooltip: {
+				trigger: 'axis',
+				axisPointer: {
+					type: 'shadow'
+				},
+				formatter: (params: any) => {
+					const data = params[0];
+					return `${data.name}<br/>Ex-ante volatility: ${data.value.toFixed(2)}%`;
+				}
+			},
 			grid: {
 				left: '3%',
 				right: '4%',
 				bottom: '10%',
 				top: '15%',
-				containLabel: false
+				containLabel: true
 			},
 			xAxis: {
 				type: 'category',
@@ -80,17 +76,22 @@
 			},
 			yAxis: {
 				type: 'value',
-				name: 'Performance (%)',
+				name: 'Volatility (%)',
 				nameLocation: 'middle',
 				nameGap: 40,
 				axisLabel: {
-					formatter: (value: number) => `${value.toFixed(2)}%`
+					formatter: '{value}%'
 				}
 			},
 			series: [
 				{
 					type: 'bar',
-					data: data,
+					data: data.map((d) => ({
+						value: parseFloat(d.value.toFixed(2)),
+						itemStyle: {
+							color: '#ef9f76'
+						}
+					})),
 					emphasis: {
 						focus: 'series'
 					},
