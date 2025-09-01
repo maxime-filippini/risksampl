@@ -24,6 +24,6 @@
 			name: 'Name',
 			currency: 'Currency'
 		}}
-		actions="{actionButtons}x"
+		actions={actionButtons}
 	/>
 </div>
