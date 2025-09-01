@@ -40,8 +40,6 @@
 				}
 			}));
 
-		let isLongSeries = data.length > 5;
-
 		let tooltip = {
 			trigger: 'axis',
 			axisPointer: {
@@ -54,6 +52,9 @@
 		};
 
 		const option: EChartsCoreOption = {
+			textStyle: {
+				fontFamily: 'IBM Plex Mono'
+			},
 			title: {
 				text: 'Year-to-date portfolio performance',
 				left: 'center',

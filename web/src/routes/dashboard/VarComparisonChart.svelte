@@ -44,6 +44,9 @@
 			.sort((a, b) => b.value - a.value); // Sort from highest to lowest VaR
 
 		const option: EChartsCoreOption = {
+			textStyle: {
+				fontFamily: 'IBM Plex Mono'
+			},
 			title: {
 				text: `1-day VaR (${getModelName(selectedVarModel)})`,
 				left: 'center',

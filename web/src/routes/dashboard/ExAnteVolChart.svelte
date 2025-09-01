@@ -41,6 +41,9 @@
 			.sort((a, b) => b.value - a.value); // Sort from highest to lowest VaR
 
 		const option: EChartsCoreOption = {
+			textStyle: {
+				fontFamily: 'IBM Plex Mono'
+			},
 			title: {
 				text: `Annualized ex-ante volatility`,
 				left: 'center',
