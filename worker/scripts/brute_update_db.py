@@ -25,7 +25,7 @@ def _write_data(session, df: pl.DataFrame, table_name: str):
         print(f"Dataframe for {table_name} had less than 50 rows. Skipped.")
         return
 
-    df.write_database(table_name, session)
+    df.write_database(table_name, session, if_table_exists="replace")
 
 
 def main(argv: Sequence[str] | None = None) -> int:
