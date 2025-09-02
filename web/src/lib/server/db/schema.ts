@@ -10,7 +10,8 @@ import {
 	primaryKey,
 	date,
 	numeric,
-	decimal
+	decimal,
+	pgEnum
 } from 'drizzle-orm/pg-core';
 
 export const instruments = pgTable(
@@ -186,3 +187,10 @@ export const MeasuresTable = pgTable(
 		})
 	]
 );
+
+export const dateTypeEnum = pgEnum('date_type', ['current', 'history']);
+
+export const DatesTable = pgTable('dates', {
+	date: date().primaryKey().notNull(),
+	type: dateTypeEnum().notNull()
+});

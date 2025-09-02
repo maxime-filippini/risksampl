@@ -71,6 +71,13 @@
       "when": 1756671299495,
       "tag": "0009_bored_santa_claus",
       "breakpoints": true
+    },
+    {
+      "idx": 10,
+      "version": "7",
+      "when": 1756792864980,
+      "tag": "0010_awesome_terrax",
+      "breakpoints": true
     }
   ]
 }
