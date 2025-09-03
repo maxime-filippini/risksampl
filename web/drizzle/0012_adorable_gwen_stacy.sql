@@ -1,0 +1,1 @@
+ALTER TABLE "var_models" ALTER COLUMN "spec" SET DATA TYPE jsonb;

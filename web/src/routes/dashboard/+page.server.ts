@@ -1,11 +1,12 @@
-import { and, eq, gte, max } from 'drizzle-orm';
+import { and, eq, gte, lte, max } from 'drizzle-orm';
 import { db } from '$lib/server/db';
-import { DatesTable, MeasuresTable, portfolios } from '$lib/server/db/schema';
+import { DatesTable, MeasurementsTable, portfolios } from '$lib/server/db/schema';
 import type { PageServerLoad } from './$types';
 import { getFirstDayOfYear } from '$lib/dates';
 
 export const load: PageServerLoad = async () => {
 	const ptfs = await db.select().from(portfolios);
+
 	const currentDateResult = await db
 		.select({ maxDate: max(DatesTable.date) })
 		.from(DatesTable)
@@ -28,13 +29,19 @@ export const load: PageServerLoad = async () => {
 
 	const dayMeasures = await db
 		.select()
-		.from(MeasuresTable)
-		.where(eq(MeasuresTable.date, currentDateStr));
+		.from(MeasurementsTable)
+		.where(eq(MeasurementsTable.date, currentDateStr));
 
 	const ytdPerf = await db
 		.select()
-		.from(MeasuresTable)
-		.where(and(eq(MeasuresTable.measure, 'ptf_value'), gte(MeasuresTable.date, firstDayOfYearStr)));
+		.from(MeasurementsTable)
+		.where(
+			and(
+				eq(MeasurementsTable.measure, 'ptf_value'),
+				gte(MeasurementsTable.date, firstDayOfYearStr),
+				lte(MeasurementsTable.date, currentDateStr)
+			)
+		);
 
 	const ytdPerfByPortfolio = ytdPerf.reduce(
 		(acc, record) => {

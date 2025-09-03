@@ -1,3 +1,4 @@
+import type { VarSpec } from '$lib/var_types';
 import { relations } from 'drizzle-orm';
 import {
 	pgTable,
@@ -11,7 +12,8 @@ import {
 	date,
 	numeric,
 	decimal,
-	pgEnum
+	pgEnum,
+	jsonb
 } from 'drizzle-orm/pg-core';
 
 export const instruments = pgTable(
@@ -167,12 +169,12 @@ export const PortfolioCompositionTable = pgTable(
 	]
 );
 
-export const MeasuresTable = pgTable(
-	'measures',
+export const MeasurementsTable = pgTable(
+	'measurements',
 	{
 		portfolioId: uuid('portfolio_id').notNull(),
 		date: date().notNull(),
-		measure: varchar({ length: 50 }),
+		measure: varchar({ length: 200 }),
 		value: decimal()
 	},
 	(table) => [
@@ -180,6 +182,11 @@ export const MeasuresTable = pgTable(
 			columns: [table.portfolioId],
 			foreignColumns: [portfolios.id],
 			name: 'measures_portfolio_id_fkey'
+		}).onDelete('cascade'),
+		foreignKey({
+			columns: [table.measure],
+			foreignColumns: [MeasuresTable.id],
+			name: 'measures_measure_fkey'
 		}).onDelete('cascade'),
 		primaryKey({
 			columns: [table.portfolioId, table.date, table.measure],
@@ -193,4 +200,19 @@ export const dateTypeEnum = pgEnum('date_type', ['current', 'history']);
 export const DatesTable = pgTable('dates', {
 	date: date().primaryKey().notNull(),
 	type: dateTypeEnum().notNull()
+});
+
+export const VarModelTable = pgTable('var_models', {
+	id: varchar({ length: 200 }).primaryKey(),
+	name: varchar({ length: 200 }),
+	spec: jsonb().$type<VarSpec>()
+});
+
+export const measureType = pgEnum('measure_type', ['value_at_risk', 'other']);
+
+export const MeasuresTable = pgTable('measures', {
+	id: varchar({ length: 200 }).primaryKey(),
+	name: varchar({ length: 200 }).notNull(),
+	type: measureType().notNull(),
+	spec: jsonb()
 });

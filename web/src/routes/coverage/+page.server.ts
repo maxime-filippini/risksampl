@@ -4,7 +4,7 @@ import {
 	instruments,
 	MarketDataTable,
 	portfolios,
-	MeasuresTable
+	MeasurementsTable
 } from '$lib/server/db/schema';
 import { eq, max, count, sql, min, isNotNull } from 'drizzle-orm';
 import type { PageServerLoad } from './$types';
@@ -58,8 +58,8 @@ export const load: PageServerLoad = async () => {
 		.groupBy(portfolios.id, sql`latest.max_as_of`);
 
 	const all_measures = await db
-		.selectDistinct({ measure: MeasuresTable.measure })
-		.from(MeasuresTable)
-		.where(isNotNull(MeasuresTable.measure));
+		.selectDistinct({ measure: MeasurementsTable.measure })
+		.from(MeasurementsTable)
+		.where(isNotNull(MeasurementsTable.measure));
 	return { insts, ptfs, all_measures };
 };

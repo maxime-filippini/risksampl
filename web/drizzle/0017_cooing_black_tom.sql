@@ -1,0 +1,1 @@
+ALTER TABLE "measurements" ADD CONSTRAINT "measures_measure_fkey" FOREIGN KEY ("measure") REFERENCES "public"."measures"("id") ON DELETE cascade ON UPDATE no action;

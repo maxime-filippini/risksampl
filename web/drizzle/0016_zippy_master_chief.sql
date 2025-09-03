@@ -1,0 +1,1 @@
+ALTER TABLE "measurements" ALTER COLUMN "measure" SET DATA TYPE varchar(200);
