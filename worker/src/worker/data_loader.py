@@ -24,12 +24,3 @@ def _build_ticker_lists(tickers: list[str], max_tickers: int) -> list[str]:
 def load_batch(tickers: list[str], date_start: datetime.date, date_end: datetime.date):
     pass
 
-
-# async def load_single_date(tickers: list[str], date: datetime.date):
-#     batches = _build_ticker_lists(tickers, max_tickers=100)
-
-#     async with httpx.AsyncClient() as client:
-#         for batch
-#         resp = client.get(EOD_URL, params={
-#             "symbols":
-#         })
