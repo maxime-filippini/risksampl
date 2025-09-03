@@ -155,6 +155,7 @@ def main():
                 )
 
                 json = resp.json()
+                print(json)
                 pagination = json["pagination"]
 
                 df = (
