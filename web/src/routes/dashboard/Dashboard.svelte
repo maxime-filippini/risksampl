@@ -14,6 +14,12 @@
 		value: string | null;
 	}
 
+	type VarMeasure = {
+		id: string;
+		name: string;
+		spec: unknown;
+	};
+
 	interface Props {
 		ptfs: Array<{ id: string; name: string; assetClass: string }>;
 		ytdPerformance: Array<{
@@ -23,9 +29,10 @@
 			performance: number;
 		}>;
 		dayMeasures: DayMeasure[];
+		varMeasures: VarMeasure[];
 	}
 
-	let { ptfs, ytdPerformance, dayMeasures }: Props = $props();
+	let { ptfs, ytdPerformance, dayMeasures, varMeasures }: Props = $props();
 
 	let selectedPortfolioIds = $state<string[]>([]);
 	let selectedVarModel = $state<string>('hist_var');
@@ -60,6 +67,8 @@
 	function handleVarModelChange(model: string) {
 		selectedVarModel = model;
 	}
+
+	console.log(varMeasures);
 </script>
 
 <!-- The dashboard -->
@@ -71,7 +80,11 @@
 	>
 		<div class="space-y-8">
 			<PortfolioSelector2 portfolios={ptfs} onSelectionChange={handleSelectionChange} />
-			<VarModelSelector selectedModel={selectedVarModel} onModelChange={handleVarModelChange} />
+			<VarModelSelector
+				selectedModel={selectedVarModel}
+				onModelChange={handleVarModelChange}
+				{varMeasures}
+			/>
 		</div>
 	</div>
 

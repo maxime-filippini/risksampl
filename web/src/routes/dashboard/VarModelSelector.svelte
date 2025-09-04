@@ -1,29 +1,11 @@
 <script lang="ts">
 	interface Props {
 		selectedModel: string;
+		varMeasures: { id: string; name: string; spec: unknown }[];
 		onModelChange: (model: string) => void;
 	}
 
-	let { selectedModel, onModelChange }: Props = $props();
-
-	const varModels = [
-		{
-			id: 'hist_var',
-			name: 'Historical Simulations',
-			tooltip: 'Confidence level of 99%, 500 days of lookback window'
-		},
-		{
-			id: 'ewma_var',
-			name: 'EWMA',
-			tooltip: 'Confidence level of 99%, 500 days of lookback window, decay factor set to 0.94%'
-		},
-		{
-			id: 'param_var',
-			name: 'Gaussian',
-			tooltip:
-				'Confidence level of 99%, 250 days of lookback window, sample volatility, Gaussian distribution'
-		}
-	];
+	let { selectedModel, onModelChange, varMeasures }: Props = $props();
 </script>
 
 <div class="space-y-4">
@@ -32,8 +14,8 @@
 	</div>
 
 	<div class="flex flex-wrap gap-3 lg:flex-col lg:flex-nowrap">
-		{#each varModels as model (model.id)}
-			<div class="max-sm:w-full sm:tooltip sm:tooltip-top" data-tip={model.tooltip}>
+		{#each varMeasures as model (model.id)}
+			<div class="max-sm:w-full sm:tooltip sm:tooltip-top">
 				<label class="flex cursor-pointer items-center space-x-2 rounded border bg-base-200/30 p-3">
 					<input
 						type="radio"

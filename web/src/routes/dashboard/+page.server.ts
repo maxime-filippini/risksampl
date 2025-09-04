@@ -1,6 +1,6 @@
 import { and, eq, gte, lte, max } from 'drizzle-orm';
 import { db } from '$lib/server/db';
-import { DatesTable, MeasurementsTable, portfolios } from '$lib/server/db/schema';
+import { DatesTable, MeasurementsTable, MeasuresTable, portfolios } from '$lib/server/db/schema';
 import type { PageServerLoad } from './$types';
 import { getFirstDayOfYear } from '$lib/dates';
 
@@ -69,5 +69,21 @@ export const load: PageServerLoad = async () => {
 		};
 	});
 
-	return { ptfs, lastBusinessDayStr: currentDateStr, dayMeasures, ytdPerf, ytdPerformance };
+	const varMeasures = await db
+		.select({
+			id: MeasuresTable.id,
+			name: MeasuresTable.name,
+			spec: MeasuresTable.spec
+		})
+		.from(MeasuresTable)
+		.where(eq(MeasuresTable.type, 'value_at_risk'));
+
+	return {
+		ptfs,
+		lastBusinessDayStr: currentDateStr,
+		dayMeasures,
+		ytdPerf,
+		ytdPerformance,
+		varMeasures
+	};
 };

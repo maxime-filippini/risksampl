@@ -23,6 +23,7 @@
 			ptfs={data.ptfs}
 			ytdPerformance={data.ytdPerformance}
 			dayMeasures={data.dayMeasures}
+			varMeasures={data.varMeasures}
 		/>
 	</div>
 </div>
