@@ -37,7 +37,7 @@ export const load: PageServerLoad = async () => {
 		.from(MeasurementsTable)
 		.where(
 			and(
-				eq(MeasurementsTable.measure, 'ptf_value'),
+				eq(MeasurementsTable.measure, 'portfolio_value'),
 				gte(MeasurementsTable.date, firstDayOfYearStr),
 				lte(MeasurementsTable.date, currentDateStr)
 			)
