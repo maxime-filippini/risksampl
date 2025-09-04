@@ -23,7 +23,7 @@
 
 	let { dayMeasures, portfolios, selectedPortfolioIds }: Props = $props();
 
-	let volMeasures = $derived(dayMeasures.filter((item) => item.measure == 'ex_ante_vol'));
+	let volMeasures = $derived(dayMeasures.filter((item) => item.measure == 'ex_ante_volatility'));
 
 	const chartOption = $derived.by(() => {
 		const portfolioMap = new Map(portfolios.map((p) => [p.id, p.name]));
