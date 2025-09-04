@@ -32,4 +32,4 @@ COPY --from=base /app/node_modules ./node_modules
 EXPOSE 3000
 
 # Start the application
-CMD ["sh", "-c", "bun run db:migrate && node build"]
+CMD ["node build"]
