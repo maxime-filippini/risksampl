@@ -352,11 +352,11 @@ def main():
             {
                 "portfolio_id": ptf_id,
                 "calc_date": calc_date,
-                "ptf_value": value,
+                "portfolio_value": value,
                 "hist_var": hist_var,
                 "ewma_var": ewma_var,
                 "param_var": param_var,
-                "ex_ante_vol": annualized_vol,
+                "ex_ante_volatility": annualized_vol,
             }
         )
 

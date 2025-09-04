@@ -1,0 +1,2 @@
+- [ ] Refactor the daily script
+- [ ] Add new VaR specs

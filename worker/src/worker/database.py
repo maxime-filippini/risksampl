@@ -134,7 +134,7 @@ class PortfolioComposition(Base):
 
 
 class Measure(Base):
-    __tablename__ = "measures"
+    __tablename__ = "measurements"
 
     portfolio_id: Mapped[uuid.UUID] = mapped_column(
         UUID(),
