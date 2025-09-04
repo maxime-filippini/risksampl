@@ -8,6 +8,11 @@
 		measure: string | null;
 		value: string | null;
 	}
+	type VarMeasure = {
+		id: string;
+		name: string;
+		spec: unknown;
+	};
 
 	interface Portfolio {
 		id: string;
@@ -19,7 +24,7 @@
 		dayMeasures: DayMeasure[];
 		portfolios: Portfolio[];
 		selectedPortfolioIds: string[];
-		selectedVarModel: string;
+		selectedVarModel: VarMeasure;
 	}
 
 	let { dayMeasures, portfolios, selectedPortfolioIds, selectedVarModel }: Props = $props();
@@ -30,7 +35,7 @@
 		const filteredMeasures = dayMeasures.filter(
 			(measure) =>
 				selectedPortfolioIds.includes(measure.portfolioId) &&
-				measure.measure === selectedVarModel &&
+				measure.measure === selectedVarModel.id &&
 				measure.value !== null &&
 				measure.measure !== null
 		);
@@ -48,7 +53,7 @@
 				fontFamily: 'IBM Plex Mono'
 			},
 			title: {
-				text: `1-day VaR (${getModelName(selectedVarModel)})`,
+				text: `1-day VaR (${selectedVarModel.name})`,
 				left: 'center',
 				textStyle: {
 					fontSize: 16,
@@ -114,15 +119,6 @@
 
 		return option;
 	});
-
-	function getModelName(model: string): string {
-		const modelNames: Record<string, string> = {
-			hist_var: 'Historical Simulations',
-			ewma_var: 'EWMA',
-			param_var: 'Gaussian'
-		};
-		return modelNames[model] || model;
-	}
 </script>
 
 <div class="w-full overflow-x-auto">

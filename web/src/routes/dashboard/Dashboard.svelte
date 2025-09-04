@@ -35,7 +35,7 @@
 	let { ptfs, ytdPerformance, dayMeasures, varMeasures }: Props = $props();
 
 	let selectedPortfolioIds = $state<string[]>([]);
-	let selectedVarModel = $state<string>('hist_var');
+	let selectedVarModel = $state<VarMeasure>(varMeasures[0]);
 
 	$effect(() => {
 		if (selectedPortfolioIds.length === 0 && ptfs.length > 0) {
@@ -64,7 +64,7 @@
 		selectedPortfolioIds = ids;
 	}
 
-	function handleVarModelChange(model: string) {
+	function handleVarModelChange(model: VarMeasure) {
 		selectedVarModel = model;
 	}
 

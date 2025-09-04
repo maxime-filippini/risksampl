@@ -1,8 +1,14 @@
 <script lang="ts">
+	type VarMeasure = {
+		id: string;
+		name: string;
+		spec: unknown;
+	};
+
 	interface Props {
-		selectedModel: string;
+		selectedModel: VarMeasure;
 		varMeasures: { id: string; name: string; spec: unknown }[];
-		onModelChange: (model: string) => void;
+		onModelChange: (model: VarMeasure) => void;
 	}
 
 	let { selectedModel, onModelChange, varMeasures }: Props = $props();
@@ -20,8 +26,8 @@
 					<input
 						type="radio"
 						name="modelselection"
-						checked={selectedModel === model.id}
-						onchange={() => onModelChange(model.id)}
+						checked={selectedModel.id === model.id}
+						onchange={() => onModelChange(model)}
 						class="radio radio-sm"
 					/>
 					<div>
