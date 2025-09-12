@@ -1,10 +1,9 @@
 <script lang="ts">
 	import Chart from './Chart.svelte';
-	import PortfolioSelector from './PortfolioSelector.svelte';
 	import YTDPerformanceChart from './YTDPerformanceChart.svelte';
 	import VarModelSelector from './VarModelSelector.svelte';
 	import VarComparisonChart from './VarComparisonChart.svelte';
-	import PortfolioSelector2 from './PortfolioSelector2.svelte';
+	import PortfolioSelector from './PortfolioSelector.svelte';
 	import ExAnteVolChart from './ExAnteVolChart.svelte';
 
 	interface DayMeasure {
@@ -79,7 +78,7 @@
 		class="w-full overflow-x-auto border-r border-base-200 p-6 lg:w-80 lg:overflow-x-visible lg:overflow-y-auto"
 	>
 		<div class="space-y-8">
-			<PortfolioSelector2 portfolios={ptfs} onSelectionChange={handleSelectionChange} />
+			<PortfolioSelector portfolios={ptfs} onSelectionChange={handleSelectionChange} />
 			<VarModelSelector
 				selectedModel={selectedVarModel}
 				onModelChange={handleVarModelChange}
