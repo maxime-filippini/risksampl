@@ -3,7 +3,6 @@ from collections.abc import Sequence
 
 from pydantic import BaseModel
 
-from worker.database import Instrument
 from worker.database import connect
 
 
@@ -23,9 +22,7 @@ def main(argv: Sequence[str] | None = None) -> int:
 
             InstrumentSchema.model_validate(d_)
 
-            inst = Instrument(**d_)
-
-            session.add(inst)
+            session.add(d_)
 
         session.commit()
 

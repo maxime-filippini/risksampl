@@ -7,9 +7,9 @@ import polars as pl
 from sqlalchemy import select
 
 from worker.data_loader import _build_ticker_lists
-from worker.database import Instrument
-from worker.database import MarketData
 from worker.database import connect
+from worker.database import instruments
+from worker.database import market_data
 from worker.settings import Settings
 
 ROOT_URL = "https://api.marketstack.com/v2"
@@ -19,7 +19,7 @@ settings = Settings()
 
 
 with connect() as session:
-    insts = session.scalars(select(Instrument)).all()
+    insts = session.scalars(select(instruments)).all()
     symbols = [inst.ticker for inst in insts]
     df_insts = pl.DataFrame(
         [
@@ -101,7 +101,7 @@ async def load_data():
             if items_to_add:
                 from sqlalchemy.dialects.postgresql import insert
 
-                stmt = insert(MarketData).values(items_to_add)
+                stmt = insert(market_data).values(items_to_add)
                 stmt = stmt.on_conflict_do_nothing(index_elements=["instrument_id", "date", "data_type"])
                 session.execute(stmt)
                 session.commit()

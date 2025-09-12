@@ -1,18 +1,8 @@
-import datetime
-import uuid
-from decimal import Decimal
-
-from sqlalchemy import Date
-from sqlalchemy import ForeignKey
-from sqlalchemy import Numeric
-from sqlalchemy import String
+from sqlalchemy import MetaData
+from sqlalchemy import Table
 from sqlalchemy import create_engine
-from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import DeclarativeBase
-from sqlalchemy.orm import Mapped
 from sqlalchemy.orm import Session
-from sqlalchemy.orm import mapped_column
-from sqlalchemy.orm import relationship
 from sqlalchemy.orm import sessionmaker
 
 from worker.settings import settings
@@ -27,123 +17,17 @@ def connect() -> Session:
     return SessionLocal()
 
 
+metadata = MetaData()
+
+
 class Base(DeclarativeBase):
     pass
 
 
-class Instrument(Base):
-    __tablename__ = "instruments"
-
-    id: Mapped[uuid.UUID] = mapped_column(UUID(), default=uuid.uuid4, primary_key=True, index=True)
-    name: Mapped[str] = mapped_column(String(255), unique=True, nullable=False)
-    ticker: Mapped[str] = mapped_column(String(10), unique=True, index=True, nullable=False)
-    currency: Mapped[str] = mapped_column(String(3), nullable=False)
-
-    investments: Mapped[list["Investment"]] = relationship(
-        "Investment",
-        back_populates="instrument",
-        cascade="all, delete-orphan",
-    )
-
-
-class Portfolio(Base):
-    __tablename__ = "portfolios"
-
-    id: Mapped[uuid.UUID] = mapped_column(UUID(), default=uuid.uuid4, primary_key=True, index=True)
-    name: Mapped[str] = mapped_column(String(100), unique=True, nullable=False)
-    currency: Mapped[str] = mapped_column(String(3), nullable=False)
-
-    investments: Mapped[list["Investment"]] = relationship(
-        "Investment",
-        back_populates="portfolio",
-        cascade="all, delete-orphan",
-    )
-
-
-class Investment(Base):
-    __tablename__ = "investments"
-
-    id: Mapped[uuid.UUID] = mapped_column(UUID(), default=uuid.uuid4, primary_key=True, nullable=False)
-    date: Mapped[datetime.date] = mapped_column(Date(), nullable=False, index=True)
-    portfolio_id: Mapped[uuid.UUID] = mapped_column(
-        UUID(),
-        ForeignKey("portfolios.id", ondelete="CASCADE"),
-        nullable=False,
-        index=True,
-    )
-    instrument_id: Mapped[uuid.UUID] = mapped_column(
-        UUID(),
-        ForeignKey("instruments.id", ondelete="CASCADE"),
-        nullable=False,
-    )
-    quantity: Mapped[Decimal] = mapped_column(Numeric(precision=20, scale=8), nullable=False)
-
-    portfolio: Mapped["Portfolio"] = relationship("Portfolio", back_populates="investments")
-    instrument: Mapped["Instrument"] = relationship("Instrument", back_populates="investments")
-
-
-class MarketData(Base):
-    __tablename__ = "market_data"
-
-    instrument_id: Mapped[uuid.UUID] = mapped_column(
-        UUID(),
-        ForeignKey("instruments.id", ondelete="CASCADE"),
-        primary_key=True,
-    )
-    date: Mapped[datetime.date] = mapped_column(
-        Date(),
-        primary_key=True,
-    )
-    data_type: Mapped[str] = mapped_column(String(50), primary_key=True)
-    value: Mapped[Decimal] = mapped_column(Numeric())
-
-
-class PortfolioValue(Base):
-    __tablename__ = "ptf_values"
-
-    date: Mapped[datetime.date] = mapped_column(
-        Date(),
-        primary_key=True,
-    )
-    portfolio_id: Mapped[uuid.UUID] = mapped_column(
-        UUID(),
-        ForeignKey("portfolios.id", ondelete="CASCADE"),
-        primary_key=True,
-    )
-    value: Mapped[Decimal] = mapped_column(Numeric(precision=20, scale=8), nullable=False)
-
-
-class PortfolioComposition(Base):
-    __tablename__ = "ptf_comp"
-
-    date: Mapped[datetime.date] = mapped_column(
-        Date(),
-        primary_key=True,
-    )
-    portfolio_id: Mapped[uuid.UUID] = mapped_column(
-        UUID(),
-        ForeignKey("portfolios.id", ondelete="CASCADE"),
-        primary_key=True,
-    )
-    instrument_id: Mapped[uuid.UUID] = mapped_column(
-        UUID(),
-        ForeignKey("instruments.id", ondelete="CASCADE"),
-        primary_key=True,
-    )
-    quantity: Mapped[Decimal] = mapped_column(Numeric(precision=20, scale=8), nullable=False)
-
-
-class Measure(Base):
-    __tablename__ = "measurements"
-
-    portfolio_id: Mapped[uuid.UUID] = mapped_column(
-        UUID(),
-        ForeignKey("portfolios.id", ondelete="CASCADE"),
-        primary_key=True,
-    )
-    date: Mapped[datetime.date] = mapped_column(
-        Date(),
-        primary_key=True,
-    )
-    measure: Mapped[str] = mapped_column(String(50), primary_key=True)
-    value: Mapped[Decimal] = mapped_column(Numeric())
+instruments = Table("instruments", metadata, autoload_with=engine)
+portfolios = Table("portfolios", metadata, autoload_with=engine)
+investments = Table("investments", metadata, autoload_with=engine)
+market_data = Table("market_data", metadata, autoload_with=engine)
+ptf_values = Table("ptf_values", metadata, autoload_with=engine)
+ptf_comp = Table("ptf_comp", metadata, autoload_with=engine)
+measurements = Table("measurements", metadata, autoload_with=engine)

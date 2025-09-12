@@ -10,11 +10,20 @@ from typing import cast
 import httpx
 import polars as pl
 from scipy import stats
+from sqlalchemy.orm import Session
 
-from worker.database import MarketData
-from worker.database import Measure
-from worker.database import PortfolioComposition
 from worker.database import connect
+from worker.database import market_data
+from worker.database import measurements
+from worker.database import ptf_comp
+from worker.readers import get_adjusted_close_up_to_date
+from worker.readers import get_all_dates
+from worker.readers import get_all_portfolio_ids
+from worker.readers import get_investments_over_time_range
+from worker.readers import get_latest_compositions
+from worker.readers import get_latest_market_data_dates
+from worker.readers import get_portfolio_compositions
+from worker.readers import get_unique_instruments
 from worker.settings import settings
 from worker.utils import insert_list_of_dicts
 
@@ -23,42 +32,207 @@ ROOT_URL = "https://api.marketstack.com/v2"
 EOD_URL = f"{ROOT_URL}/eod"
 
 
+def _update_dates_table(session: Session, current_date: datetime.date):
+    df_dates = (
+        get_all_dates(session)
+        .pipe(lambda df: pl.concat([df, pl.DataFrame([{"date": current_date, "type": "history"}])]))
+        .with_columns(type=pl.lit("history"))
+        .unique()
+        .with_columns(type=pl.when(pl.col("date") == current_date).then(pl.lit("current")).otherwise(pl.col("type")))
+        .sort("date", descending=True)
+    )
+
+    df_dates.write_database("dates", session, if_table_exists="replace")
+
+
+def _build_ticker_batches(tickers: list[str], max_tickers: int) -> list[str]:
+    out = []
+
+    while True:
+        batch = tickers[:max_tickers]
+        out.append(",".join(batch))
+
+        n = len(batch)
+
+        if n < max_tickers:
+            break
+
+        tickers = tickers[n:]
+
+    return out
+
+
+def _load_market_data(
+    session, batches: list[str], min_date: datetime.date, max_date: datetime.date, df_insts: pl.DataFrame
+):
+    assert len(batches) == 1
+
+    # We start with a synchronous http client so we dont have to wrap it in an async
+    # functions and deal with an event loop.
+
+    batch = batches[0]
+    offset = 0
+    LIMIT = 1000
+
+    with httpx.Client(timeout=30.0) as client:
+        while True:
+            print("Loading data from Marketstack...")
+
+            resp = client.get(
+                EOD_URL,
+                params={
+                    "access_key": settings.MARKETSTACK_API_KEY,
+                    "symbols": batch,
+                    "date_from": min_date.strftime("%Y-%m-%d"),
+                    "date_to": max_date.strftime("%Y-%m-%d"),
+                    "offset": offset,
+                    "limit": LIMIT,
+                },
+            )
+
+            json = resp.json()
+            print(json)
+            pagination = json["pagination"]
+
+            df = (
+                pl.DataFrame(
+                    json["data"],
+                    schema={
+                        "date": pl.String,
+                        "symbol": pl.String,
+                        "name": pl.String,
+                        "exchange_code": pl.String,
+                        "asset_type": pl.String,
+                        "price_currency": pl.String,
+                        "exchange": pl.String,
+                        "open": pl.Float64,
+                        "high": pl.Float64,
+                        "low": pl.Float64,
+                        "close": pl.Float64,
+                        "volume": pl.Float64,
+                        "adj_open": pl.Float64,
+                        "adj_high": pl.Float64,
+                        "adj_low": pl.Float64,
+                        "adj_close": pl.Float64,
+                        "adj_volume": pl.Float64,
+                    },
+                )
+                .drop("name", "exchange_code", "asset_type", "price_currency", "exchange")
+                .with_columns(date=pl.col("date").str.to_datetime("%Y-%m-%dT%H:%M:%S+%Z").dt.date())
+                .unpivot(index=["date", "symbol"])
+                .rename({"variable": "data_type"})
+            )
+
+            df_with_ids = (
+                df.join(df_insts, left_on="symbol", right_on="ticker")
+                .rename(
+                    {
+                        "id": "instrument_id",
+                    }
+                )
+                .drop("symbol")
+            )
+
+            print(f"About to add {len(df_with_ids)} to the database...")
+
+            items_to_add = df_with_ids.to_dicts()
+
+            if items_to_add:
+                insert_list_of_dicts(items_to_add, market_data, session=session)
+
+            offset += LIMIT
+
+            if len(df) < LIMIT or offset > pagination["total"]:
+                break
+
+
+def _single_measure_loop(
+    df_positions: pl.DataFrame, df_market_data: pl.DataFrame, ptf_id: str, calc_date: datetime.date
+):
+    df_ = (
+        df_positions.filter(pl.col("portfolio_id").eq(ptf_id))
+        .filter(pl.col("date").eq(calc_date))
+        .drop("portfolio_id", "date")
+    )
+
+    df_prices = df_.select("instrument_id").join(df_market_data, how="right", on=["instrument_id"])
+
+    df_ = (
+        df_.join(df_prices, on=["instrument_id"])
+        .filter(pl.col("date") <= calc_date)
+        .with_columns(value=pl.col("quantity") * pl.col("price"))
+        .group_by("date")
+        .agg(value=pl.col("value").sum())
+        .sort("date")
+        .with_columns(returns=pl.col("value").pct_change())
+    )
+
+    rets = df_["returns"]
+    value = df_["value"][-1]
+
+    assert len(rets) > 60
+
+    vol = rets.tail(60).std()
+
+    assert isinstance(vol, float)
+
+    annualized_vol = vol * math.sqrt(250)
+    longer_vol = rets.tail(250).std()
+
+    hist_var = rets.tail(500).quantile(1 - 0.99)
+    assert hist_var is not None
+
+    hist_var = -hist_var
+
+    ewma_backcast_window = 60
+    ewma_backcast_vol = rets[:ewma_backcast_window].std()
+    curr = ewma_backcast_vol
+    ewma_vols = [curr]
+
+    for ret in rets[ewma_backcast_window:]:
+        assert isinstance(curr, float)
+        curr = math.sqrt(0.94 * curr**2 + 0.06 * ret**2)
+        ewma_vols.append(curr)
+
+    ewma_vol = ewma_vols[-1]
+    assert isinstance(ewma_vol, float)
+    assert isinstance(longer_vol, float)
+
+    ewma_var = float(-ewma_vol * stats.norm.ppf(1 - 0.99))
+    param_var = float(-longer_vol * stats.norm.ppf(1 - 0.99))
+
+    # Put it all together
+    return pl.DataFrame(
+        {
+            "portfolio_id": ptf_id,
+            "calc_date": calc_date,
+            "portfolio_value": value,
+            "hist_var": hist_var,
+            "ewma_var": ewma_var,
+            "param_var": param_var,
+            "ex_ante_volatility": annualized_vol,
+        }
+    )
+
+
 # Before we do anything, we load data from our database
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("date")
     args = parser.parse_args()
 
+    # Parse the date with the expected format
     args.date = datetime.datetime.strptime(args.date, "%Y%m%d").date()
 
     with connect() as session:
-        df_insts = pl.read_database("SELECT DISTINCT id, ticker FROM instruments", session)
+        # We start by loading the database tables we will need
+        df_insts = get_unique_instruments(session)
+        df_latest_comps = get_latest_compositions(session)
+        df_market_data_dates = get_latest_market_data_dates(session)
+        df_ptfs = get_all_portfolio_ids(session)
 
-        df_latest_comps = pl.read_database(
-            """
-            SELECT 
-                ptf_comp.portfolio_id::TEXT,
-                ptf_comp.instrument_id::TEXT,
-                ptf_comp.quantity,
-                ptf_comp.date
-            FROM ptf_comp
-            LEFT JOIN (
-                SELECT portfolio_id, MAX(date) AS max_date
-                FROM ptf_comp
-                GROUP BY portfolio_id
-            ) AS T
-            ON ptf_comp.portfolio_id = T.portfolio_id
-            WHERE ptf_comp.date = T.max_date
-            """,
-            session,
-        )
-
-        df_market_data_dates = pl.read_database(
-            "SELECT instrument_id, MAX(date) AS max_date FROM market_data GROUP BY instrument_id", session
-        )
-
-        df_ptfs = pl.read_database("SELECT id::TEXT FROM portfolios", session)
-
+        # We determine the last investment date, i.e. our starting point
+        # TODO: Determine what happens if we have a portfolio that doesn't have a single record in the investments table
         df_latest_date = (
             pl.concat(
                 [
@@ -70,173 +244,37 @@ def main():
             .agg(date=pl.col("date").max())
         )
 
+        # This is the oldest of the latest composition dates for all portfolios
         min_date = cast(datetime.date, df_latest_date["date"].min())
 
-        df_investments = pl.read_database(
-            """
-            SELECT 
-                portfolio_id::TEXT as portfolio_id,
-                instrument_id::TEXT as instrument_id,
-                date,
-                quantity
-            FROM investments
-            WHERE 
-                1=1
-                AND date <= :max_date
-                AND date >= :min_date
-            """,
-            session,
-            execute_options={"params": {"max_date": args.date, "min_date": min_date}},
-            schema_overrides={
-                "portfolio_id": pl.String,
-                "instrument_id": pl.String,
-                "date": pl.Date,
-                "quantity": pl.Decimal(),
-            },
-        )
+        # Only load investments within the time range where they will be needed
+        # NOTE: This is rough, and we should technically be more granular, i.e. use dates on a per-investment basis
+        df_investments = get_investments_over_time_range(session, date_start=min_date, date_end=args.date)
 
         tickers = df_insts["ticker"].to_list()
 
-    # Then, we can define the batches for loading market data
-
-    def _build_ticker_batches(tickers: list[str], max_tickers: int) -> list[str]:
-        out = []
-
-        while True:
-            batch = tickers[:max_tickers]
-            out.append(",".join(batch))
-
-            n = len(batch)
-
-            if n < max_tickers:
-                break
-
-            tickers = tickers[n:]
-
-        return out
-
-    batches = _build_ticker_batches(tickers, max_tickers=1000)
-
-    # First, we need to get the necessary market data
-    # This means first getting the latest market data for all instruments, and then
-    # getting the data from the oldest day. Admittedly this is a little bit
-    # wasteful, but simpler than batching batches...
-
     with connect() as session:
+        # Loading market data
+        batches = _build_ticker_batches(tickers, max_tickers=1000)
         date_from = cast(datetime.date, df_market_data_dates["max_date"].min())
 
-    # Now we can call our endpoints. For now let's assume we only have one batch of
-    # tickers
+        if date_from >= args.date:
+            print("Not adding market data.")
+        else:
+            # For now let's assume we only have one batch of tickers
+            assert len(batches) == 1
+            _load_market_data(session, batches, min_date=date_from, max_date=args.date, df_insts=df_insts)
 
-    def _load_market_data(session, batches: list[str]):
-        assert len(batches) == 1
-
-        # We start with a synchronous http client so we dont have to wrap it in an async
-        # functions and deal with an event loop.
-
-        batch = batches[0]
-        offset = 0
-        LIMIT = 1000
-
-        with httpx.Client(timeout=30.0) as client:
-            while True:
-                print("Loading data from Marketstack...")
-
-                resp = client.get(
-                    EOD_URL,
-                    params={
-                        "access_key": settings.MARKETSTACK_API_KEY,
-                        "symbols": batch,
-                        "date_from": date_from.strftime("%Y-%m-%d"),
-                        "date_to": args.date.strftime("%Y-%m-%d"),
-                        "offset": offset,
-                        "limit": LIMIT,
-                    },
-                )
-
-                json = resp.json()
-                print(json)
-                pagination = json["pagination"]
-
-                df = (
-                    pl.DataFrame(
-                        json["data"],
-                        schema={
-                            "date": pl.String,
-                            "symbol": pl.String,
-                            "name": pl.String,
-                            "exchange_code": pl.String,
-                            "asset_type": pl.String,
-                            "price_currency": pl.String,
-                            "exchange": pl.String,
-                            "open": pl.Float64,
-                            "high": pl.Float64,
-                            "low": pl.Float64,
-                            "close": pl.Float64,
-                            "volume": pl.Float64,
-                            "adj_open": pl.Float64,
-                            "adj_high": pl.Float64,
-                            "adj_low": pl.Float64,
-                            "adj_close": pl.Float64,
-                            "adj_volume": pl.Float64,
-                        },
-                    )
-                    .drop("name", "exchange_code", "asset_type", "price_currency", "exchange")
-                    .with_columns(date=pl.col("date").str.to_datetime("%Y-%m-%dT%H:%M:%S+%Z").dt.date())
-                    .unpivot(index=["date", "symbol"])
-                    .rename({"variable": "data_type"})
-                )
-
-                df_with_ids = (
-                    df.join(df_insts, left_on="symbol", right_on="ticker")
-                    .rename(
-                        {
-                            "id": "instrument_id",
-                        }
-                    )
-                    .drop("symbol")
-                )
-
-                print(f"About to add {len(df_with_ids)} to the database...")
-
-                items_to_add = df_with_ids.to_dicts()
-
-                if items_to_add:
-                    insert_list_of_dicts(items_to_add, MarketData, session=session)
-
-                offset += 1000
-
-                if len(df) < 1000 or offset > pagination["total"]:
-                    break
-
-    if date_from >= args.date:
-        print("Not adding market data.")
-    else:
-        with connect() as session:
-            _load_market_data(session, batches)
-
-    # Ok - Data loading works, now we need to compute the portfolio compositions
-    # based on latest portfolio composition
-
-    with connect() as session:
+        # Once data has been loaded and written to the database, we reload all
+        # the data we need. For now, we only need adjusted close prices
         df_market_data = (
-            pl.read_database(
-                """
-                SELECT
-                    date,
-                    instrument_id::TEXT as instrument_id,
-                    value AS price
-                FROM market_data
-                WHERE date <= :date
-                AND data_type = 'adj_close'""",
-                session,
-                execute_options={"params": {"date": args.date}},
-            )
+            get_adjusted_close_up_to_date(session, max_date=args.date)
             .group_by("instrument_id")
             .map_groups(lambda df: (df.sort("date").with_columns(price=pl.col("price").forward_fill())))
         )
 
-        s_cal_dates = pl.date_range(min_date, args.date, eager=True)
+        # Here, our calculation dates will be all dates from our latest composition to now
+        calculation_dates = pl.date_range(min_date, args.date, eager=True)
 
         pairs = pl.concat(
             [
@@ -256,7 +294,7 @@ def main():
 
             df = (
                 pl.DataFrame(
-                    {"portfolio_id": str(portfolio_id), "instrument_id": str(instrument_id), "date": s_cal_dates},
+                    {"portfolio_id": str(portfolio_id), "instrument_id": str(instrument_id), "date": calculation_dates},
                     schema={"portfolio_id": pl.String, "instrument_id": pl.String, "date": pl.Date},
                 )
                 .join(
@@ -284,81 +322,11 @@ def main():
         items_to_add = df_new_comps.to_dicts()
 
         if items_to_add:
-            insert_list_of_dicts(items_to_add, table=PortfolioComposition, session=session)
+            insert_list_of_dicts(items_to_add, table=ptf_comp, session=session)
         else:
             print("No compositions to add!")
 
-        df_comps = pl.read_database(
-            "SELECT portfolio_id::TEXT, instrument_id::TEXT, date, quantity FROM ptf_comp WHERE date = :date",
-            session,
-            execute_options={"params": {"date": args.date}},
-        )
-
-    def _single_measure_loop(
-        df_positions: pl.DataFrame, df_market_data: pl.DataFrame, ptf_id: str, calc_date: datetime.date
-    ):
-        df_ = (df_positions.filter(pl.col("portfolio_id").eq(ptf_id)).filter(pl.col("date").eq(calc_date))).drop(
-            "portfolio_id", "date"
-        )
-
-        df_prices = df_.select("instrument_id").join(df_market_data, how="right", on=["instrument_id"])
-
-        df_ = (
-            df_.join(df_prices, on=["instrument_id"])
-            .filter(pl.col("date") <= calc_date)
-            .with_columns(value=pl.col("quantity") * pl.col("price"))
-            .group_by("date")
-            .agg(value=pl.col("value").sum())
-            .sort("date")
-            .with_columns(returns=pl.col("value").pct_change())
-        )
-
-        rets = df_["returns"]
-        value = df_["value"][-1]
-
-        assert len(rets) > 60
-
-        vol = rets.tail(60).std()
-
-        assert isinstance(vol, float)
-
-        annualized_vol = vol * math.sqrt(250)
-        longer_vol = rets.tail(250).std()
-
-        hist_var = rets.tail(500).quantile(1 - 0.99)
-        assert hist_var is not None
-
-        hist_var = -hist_var
-
-        ewma_backcast_window = 60
-        ewma_backcast_vol = rets[:ewma_backcast_window].std()
-        curr = ewma_backcast_vol
-        ewma_vols = [curr]
-
-        for ret in rets[ewma_backcast_window:]:
-            assert isinstance(curr, float)
-            curr = math.sqrt(0.94 * curr**2 + 0.06 * ret**2)
-            ewma_vols.append(curr)
-
-        ewma_vol = ewma_vols[-1]
-        assert isinstance(ewma_vol, float)
-        assert isinstance(longer_vol, float)
-
-        ewma_var = float(-ewma_vol * stats.norm.ppf(1 - 0.99))
-        param_var = float(-longer_vol * stats.norm.ppf(1 - 0.99))
-
-        # Put it all together
-        return pl.DataFrame(
-            {
-                "portfolio_id": ptf_id,
-                "calc_date": calc_date,
-                "portfolio_value": value,
-                "hist_var": hist_var,
-                "ewma_var": ewma_var,
-                "param_var": param_var,
-                "ex_ante_volatility": annualized_vol,
-            }
-        )
+        df_comps = get_portfolio_compositions(session, date=args.date)
 
     combinations_for_measures = df_comps.select("portfolio_id", "date").unique()
 
@@ -373,25 +341,12 @@ def main():
 
     items_to_add = df_measures.to_dicts()
 
-    if items_to_add:
-        insert_list_of_dicts(items=items_to_add, table=Measure, session=session)
-
-    # Finally, update the date
-
     with connect() as session:
-        df_dates = (
-            pl.read_database("SELECT * FROM dates", session)
-            .pipe(lambda df: pl.concat([df, pl.DataFrame([{"date": args.date, "type": "history"}])]))
-            .with_columns(type=pl.lit("history"))
-            .unique()
-            .with_columns(type=pl.when(pl.col("date") == args.date).then(pl.lit("current")).otherwise(pl.col("type")))
-            .sort("date", descending=True)
-        )
+        if items_to_add:
+            insert_list_of_dicts(items=items_to_add, table=measurements, session=session)
 
-        print(df_dates)
-        df_dates.write_database("dates", session, if_table_exists="replace")
-
-        session.commit()
+        # Finally, update the dates table
+        _update_dates_table(session, current_date=args.date)
 
 
 if __name__ == "__main__":

@@ -1,2 +1,3 @@
 - [ ] Refactor the daily script
 - [ ] Add new VaR specs
+- [ ] Change sqlalchemy to reflect the schema instead of re-defining it.
