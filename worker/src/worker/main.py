@@ -1,3 +1,4 @@
+import datetime
 import logging
 from contextlib import asynccontextmanager
 
@@ -13,6 +14,7 @@ from worker.constants import JOB_ID
 from worker.constants import LOCK_KEY
 from worker.constants import TZ_NAME
 from worker.database import connect
+from worker.processes import daily_run
 from worker.settings import settings
 
 logging.basicConfig(
@@ -63,11 +65,13 @@ async def test_job():
 
 async def do_daily_run():
     # Runs once per day; idempotent
-    session = connect()
-    try:
-        log.info("hi, this is the daily run")
-    finally:
-        session.close()
+    yesterday = datetime.date.today() + datetime.timedelta(days=-1)
+
+    # Weekend - Return early
+    if yesterday.weekday() > 4:
+        return
+
+    daily_run(ref_date=yesterday)
 
 
 @asynccontextmanager
@@ -93,7 +97,7 @@ async def lifespan(app: FastAPI):
     if scheduler.get_job(JOB_ID):
         log.info("Removing existing job %s", JOB_ID)
         scheduler.remove_job(JOB_ID)
-    
+
     log.info("Adding job %s with trigger %s", JOB_ID, trigger)
     scheduler.add_job(do_daily_run, trigger=trigger, id=JOB_ID)
 
