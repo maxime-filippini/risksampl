@@ -13,7 +13,7 @@
 		"format": "prettier --write .",
 		"lint": "prettier --check . && eslint .",
 		"gen:api": "openapi-typescript http://localhost:8000/openapi.json -o src/lib/types/api.ts",
-		"db:start": "docker compose up",
+		"db:start": "docker-compose -f ../docker-compose.dev.yaml up -d --build",
 		"db:push": "drizzle-kit push",
 		"db:generate": "bun --env-file=.env drizzle-kit generate",
 		"db:migrate": "drizzle-kit migrate",
