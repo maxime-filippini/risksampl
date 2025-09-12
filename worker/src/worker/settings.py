@@ -12,7 +12,7 @@ class Settings(BaseSettings):
     model_config = SettingsConfigDict(env_file=".env", extra="ignore")
 
     DATABASE_URL: str = ""
-    TESTING: bool = True
+    TESTING: bool = False
     MARKETSTACK_API_KEY: str = ""
 
     def model_post_init(self, context: Any) -> None:
@@ -22,7 +22,7 @@ class Settings(BaseSettings):
             self._trigger = IntervalTrigger(seconds=10)
             return
 
-        self._trigger = CronTrigger(hour=12, minute=0, timezone=TZ_NAME)
+        self._trigger = CronTrigger(hour=8, minute=0, timezone=TZ_NAME)
 
 
 settings = Settings()
