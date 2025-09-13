@@ -38,6 +38,7 @@ def _update_dates_table(session: Session, current_date: datetime.date):
     )
 
     df_dates.write_database("dates", session, if_table_exists="replace")
+    session.commit()
 
 
 def _build_ticker_batches(tickers: list[str], max_tickers: int) -> list[str]:
