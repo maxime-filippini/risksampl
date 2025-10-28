@@ -1,38 +1,36 @@
-# sv
+# Risksampl
 
-Everything you need to build a Svelte project, powered by [`sv`](https://github.com/sveltejs/cli).
 
-## Creating a project
+## To launch locally
 
-If you're seeing this, you've probably already done this step. Congrats!
+## Set up the database
 
-```sh
-# create a new project in the current directory
-npx sv create
+Start by launching the local database via Docker.
 
-# create a new project in my-app
-npx sv create my-app
+```console
+bun run db:start
 ```
 
-## Developing
+### Optional: Restore from a backup.
 
-Once you've created a project and installed dependencies with `npm install` (or `pnpm install` or `yarn`), start a development server:
+On the server:
 
-```sh
-npm run dev
-
-# or start the server and open the app in a new browser tab
-npm run dev -- --open
+```console
+docker exec -it <db-container> pg_dump -U <user> -Fc <database> > backup.dump
+docker cp <db-container>:backup.dump /tmp/backup.dump
 ```
 
-## Building
+On your machine
 
-To create a production version of your app:
-
-```sh
-npm run build
+```console
+scp <machine>:/tmp/backup.dump .
+docker exec -it <local-db-container> pg_restore -U <user> -d <database> /tmp/backup.dump
 ```
 
-You can preview the production build with `npm run preview`.
+### Apply migrations
 
-> To deploy your app, you may need to install an [adapter](https://svelte.dev/docs/kit/adapters) for your target environment.
+Apply the migrations that may be missing
+
+```console
+bun run db:migrate
+```
