@@ -3,7 +3,7 @@
 
 ## To launch locally
 
-## Set up the database
+### Set up the database
 
 Start by launching the local database via Docker.
 
@@ -11,7 +11,7 @@ Start by launching the local database via Docker.
 bun run db:start
 ```
 
-### Optional: Restore from a backup.
+#### Optional: Restore from a backup.
 
 On the server:
 
@@ -27,10 +27,16 @@ scp <machine>:/tmp/backup.dump .
 docker exec -it <local-db-container> pg_restore -U <user> -d <database> /tmp/backup.dump
 ```
 
-### Apply migrations
+#### Apply migrations
 
 Apply the migrations that may be missing
 
 ```console
 bun run db:migrate
+```
+
+### Run the application
+
+```console
+bun run dev
 ```
