@@ -1,0 +1,4 @@
+- [x] Refactor the daily script
+- [ ] Add new VaR specs
+- [x] Change sqlalchemy to reflect the schema instead of re-defining it.
+- [x] Automate the daily run to run at 8am
