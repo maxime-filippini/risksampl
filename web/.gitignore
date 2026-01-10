@@ -22,8 +22,7 @@ Thumbs.db
 vite.config.js.timestamp-*
 vite.config.ts.timestamp-*
 
-
 .vscode/
 *.dump
-# Sentry Config File
+
 .env.sentry-build-plugin

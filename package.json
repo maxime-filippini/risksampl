@@ -1,0 +1,15 @@
+{
+  "name": "risksampl",
+  "version": "1.0.0",
+  "scripts": {
+    "web:dev": "cd web && bun run dev",
+    "web:setup": "cd web && bun i",
+    "worker:setup": "cd worker && uv sync",
+    "worker:dev": "cd worker && uv run fastapi run src/worker/main.py --host 0.0.0.0 --port 8000",
+    "db:start": "docker-compose -f ./db/docker-compose.dev.yaml up -d --build",
+    "db:push": "cd web && drizzle-kit push",
+    "db:generate": "cd web && bun --env-file=.env drizzle-kit generate",
+    "db:migrate": "cd web && drizzle-kit migrate",
+    "db:studio": "cd web && drizzle-kit studio"
+  }
+}

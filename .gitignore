@@ -1,0 +1,5 @@
+.env*
+node_modules/
+*.dump.sql
+.worktrees/
+.DS_Store
