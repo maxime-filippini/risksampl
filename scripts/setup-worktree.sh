@@ -6,9 +6,9 @@ if [ $# -ne 1 ]; then
   exit 1
 fi
 
-BRANCH_NAME=$1
-WORKTREE_NAME=$2
-WT_PATH=".worktrees/$2"
+WORKTREE_NAME=$1
+WT_PATH=".worktrees/$1"
+BRANCH_NAME="feature/$1
 
 git worktree add -b $BRANCH_NAME $WT_PATH
 cp .env $WT_PATH/.env
