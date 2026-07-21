@@ -23,7 +23,7 @@
 				<legend class="fieldset-legend">Your email address</legend>
 				<input name="email" class="input w-full" type="email" value={form?.data?.email ?? ''} />
 				{#if fieldErrors?.email}
-					{#each fieldErrors.email as err}
+					{#each fieldErrors.email as err (err)}
 						<div class="mt-1 text-sm text-error">{err}</div>
 					{/each}
 				{/if}
@@ -41,7 +41,7 @@
 					<option value="other-inquiry">Other inquiry</option>
 				</select>
 				{#if fieldErrors?.requestType}
-					{#each fieldErrors.requestType as err}
+					{#each fieldErrors.requestType as err (err)}
 						<div class="mt-1 text-sm text-error">An error occurred on this field.</div>
 					{/each}
 				{/if}
@@ -55,14 +55,14 @@
 					value={form?.data?.request ?? ''}
 				></textarea>
 				{#if fieldErrors?.request}
-					{#each fieldErrors.request as err}
+					{#each fieldErrors.request as err (err)}
 						<div class="mt-1 text-sm text-error">{err}</div>
 					{/each}
 				{/if}
 			</fieldset>
 			<button class="btn mt-8 w-full btn-primary">Submit</button>
 			{#if formErrors}
-				{#each formErrors as err}
+				{#each formErrors as err (err)}
 					<div class="mt-1 text-sm text-error">{err}</div>
 				{/each}
 			{/if}

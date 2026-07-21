@@ -1,6 +1,5 @@
 <script lang="ts">
 	import { getContext } from 'svelte';
-	import ExAnteVolChart from '../ExAnteVolChart.svelte';
 	import VarComparisonChart from '../VarComparisonChart.svelte';
 	import VarModelSelector from '../VarModelSelector.svelte';
 
@@ -9,7 +8,6 @@
 	type VarMeasure = {
 		id: string;
 		name: string;
-		spec: unknown;
 	};
 
 	let selectedVarModel = $state<VarMeasure>(data.varMeasures[0]);

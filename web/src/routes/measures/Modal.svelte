@@ -4,16 +4,10 @@
 	type Props = {
 		modalOpened: string | null;
 		id: string;
-		measure: {
-			id: string;
-			name: string;
-			type: 'other' | 'value_at_risk';
-			spec: unknown;
-		};
 		children?: Snippet;
 	};
 
-	let { modalOpened = $bindable(), id, measure, children }: Props = $props();
+	let { modalOpened = $bindable(), id, children }: Props = $props();
 
 	let dialog = $state<HTMLDialogElement>();
 

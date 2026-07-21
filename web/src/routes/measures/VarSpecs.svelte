@@ -5,14 +5,11 @@
 		measure
 	}: {
 		measure: {
-			id: string;
 			name: string;
-			type: 'value_at_risk' | 'other';
 			spec: unknown;
 		};
 	} = $props();
 
-	console.log(measure.spec);
 	let spec = varSpec.parse(measure.spec);
 </script>
 

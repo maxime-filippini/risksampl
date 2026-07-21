@@ -1,5 +1,4 @@
 <script lang="ts">
-	import Chart from './Chart.svelte';
 	import YTDPerformanceChart from './YTDPerformanceChart.svelte';
 	import VarModelSelector from './VarModelSelector.svelte';
 	import VarComparisonChart from './VarComparisonChart.svelte';
@@ -16,7 +15,6 @@
 	type VarMeasure = {
 		id: string;
 		name: string;
-		spec: unknown;
 	};
 
 	interface Props {

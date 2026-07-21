@@ -8,9 +8,9 @@
 	let modalOpened = $state<string | null>(null);
 </script>
 
-{#snippet specButton(row: (typeof data.measures)[0], index: number)}
+{#snippet specButton(row: (typeof data.measures)[0])}
 	<button class="btn w-full btn-primary" onclick={() => (modalOpened = row.id)}>See specs</button>
-	<Modal bind:modalOpened id={row.id} measure={row}>
+	<Modal bind:modalOpened id={row.id}>
 		<VarSpecs measure={row} />
 	</Modal>
 {/snippet}
