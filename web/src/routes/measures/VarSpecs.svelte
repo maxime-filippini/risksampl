@@ -10,7 +10,7 @@
 		};
 	} = $props();
 
-	let spec = varSpec.parse(measure.spec);
+	let spec = $derived(varSpec.parse(measure.spec));
 </script>
 
 <div class="flex flex-col gap-4">

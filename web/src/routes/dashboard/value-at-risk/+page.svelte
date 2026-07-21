@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { getContext } from 'svelte';
+	import { getContext, untrack } from 'svelte';
 	import VarComparisonChart from '../VarComparisonChart.svelte';
 	import VarModelSelector from '../VarModelSelector.svelte';
 
@@ -10,7 +10,7 @@
 		name: string;
 	};
 
-	let selectedVarModel = $state<VarMeasure>(data.varMeasures[0]);
+	let selectedVarModel = $state<VarMeasure>(untrack(() => data.varMeasures[0]));
 	const selectedPortfolioIds: () => string[] = getContext('selectedPortfolioIds');
 
 	function onModelChange(model: VarMeasure) {

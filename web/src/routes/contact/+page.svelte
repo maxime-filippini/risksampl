@@ -3,8 +3,8 @@
 
 	let { form }: PageProps = $props();
 
-	let fieldErrors = form?.errors?.fieldErrors;
-	let formErrors = form?.errors?.formErrors;
+	let fieldErrors = $derived(form?.errors?.fieldErrors);
+	let formErrors = $derived(form?.errors?.formErrors);
 </script>
 
 <div class="mx-auto flex max-w-5xl flex-col gap-4">
