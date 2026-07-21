@@ -2,12 +2,13 @@
 	type VarMeasure = {
 		id: string;
 		name: string;
-		spec: unknown;
 	};
 
+	type SelectedVarModel = Pick<VarMeasure, 'id'>;
+
 	interface Props {
-		selectedModel: VarMeasure;
-		varMeasures: { id: string; name: string; spec: unknown }[];
+		selectedModel: SelectedVarModel;
+		varMeasures: VarMeasure[];
 		onModelChange: (model: VarMeasure) => void;
 	}
 

@@ -1,4 +1,6 @@
 <script lang="ts">
+	import { untrack } from 'svelte';
+
 	type Portfolio = {
 		id: string;
 		name: string;
@@ -14,21 +16,25 @@
 
 	// Get the list of asset classes and the number of portfolios associated
 	// with them
-	const assetClassCounts = portfolios.reduce(
-		(acc, p) => {
-			acc[p.assetClass] = (acc[p.assetClass] || 0) + 1;
-			return acc;
-		},
-		{} as Record<string, number>
+	let assetClassCounts = $derived(
+		portfolios.reduce(
+			(acc, p) => {
+				acc[p.assetClass] = (acc[p.assetClass] || 0) + 1;
+				return acc;
+			},
+			{} as Record<string, number>
+		)
 	);
 
-	const assetClasses = Object.entries(assetClassCounts)
-		.sort(([, a], [, b]) => b - a)
-		.map(([assetClass]) => assetClass);
+	let assetClasses = $derived(
+		Object.entries(assetClassCounts)
+			.sort(([, a], [, b]) => b - a)
+			.map(([assetClass]) => assetClass)
+	);
 
-	const allAssetClasses = ['All', ...assetClasses];
+	let allAssetClasses = $derived(['All', ...assetClasses]);
 
-	let selectedAssetClass = $state(assetClasses[0]);
+	let selectedAssetClass = $state(untrack(() => assetClasses[0]));
 
 	let selectedPortfolios = $derived.by(() => {
 		if (selectedAssetClass === 'All') {

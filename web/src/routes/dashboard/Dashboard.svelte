@@ -1,5 +1,5 @@
 <script lang="ts">
-	import Chart from './Chart.svelte';
+	import { untrack } from 'svelte';
 	import YTDPerformanceChart from './YTDPerformanceChart.svelte';
 	import VarModelSelector from './VarModelSelector.svelte';
 	import VarComparisonChart from './VarComparisonChart.svelte';
@@ -16,7 +16,6 @@
 	type VarMeasure = {
 		id: string;
 		name: string;
-		spec: unknown;
 	};
 
 	interface Props {
@@ -34,7 +33,7 @@
 	let { ptfs, ytdPerformance, dayMeasures, varMeasures }: Props = $props();
 
 	let selectedPortfolioIds = $state<string[]>([]);
-	let selectedVarModel = $state<VarMeasure>(varMeasures[0]);
+	let selectedVarModel = $state<VarMeasure>(untrack(() => varMeasures[0]));
 
 	$effect(() => {
 		if (selectedPortfolioIds.length === 0 && ptfs.length > 0) {
@@ -66,8 +65,6 @@
 	function handleVarModelChange(model: VarMeasure) {
 		selectedVarModel = model;
 	}
-
-	console.log(varMeasures);
 </script>
 
 <!-- The dashboard -->

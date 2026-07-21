@@ -1,7 +1,6 @@
 import { drizzle } from 'drizzle-orm/postgres-js';
 import postgres from 'postgres';
-import { instruments, portfolios, investments } from '../src/lib/server/db/schema.js';
-import { v4 as uuidv4 } from 'uuid';
+import { instruments, portfolios, investments } from '$lib/server/db/schema';
 
 // Get database connection
 const client = postgres(process.env.DATABASE_URL!);
@@ -19,16 +18,17 @@ async function seedPortfoliosAndInvestments() {
 			console.log(`Processing ${instrument.name} (${instrument.ticker})`);
 
 			// Create portfolio with same name and currency as instrument
-			const portfolioId = uuidv4();
+			const portfolioId = crypto.randomUUID();
 			await db.insert(portfolios).values({
 				id: portfolioId,
 				name: instrument.name,
-				currency: instrument.currency
+				currency: instrument.currency,
+				assetClass: instrument.assetClass
 			});
 
 			// Create investment of 1000 shares on 01/01/2000
 			await db.insert(investments).values({
-				id: uuidv4(),
+				id: crypto.randomUUID(),
 				date: '2000-01-01',
 				portfolioId: portfolioId,
 				instrumentId: instrument.id,

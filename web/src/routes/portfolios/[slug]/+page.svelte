@@ -3,7 +3,6 @@
 	import type { PageProps } from './$types';
 
 	let { data }: PageProps = $props();
-	console.log(data.slug);
 </script>
 
 <div class="flex flex-col gap-8">

@@ -2,19 +2,6 @@
 	import { page } from '$app/state';
 	import PortfolioSelector from './PortfolioSelector.svelte';
 	import type { Snippet } from 'svelte';
-	interface DayMeasure {
-		portfolioId: string;
-		date: string;
-		measure: string | null;
-		value: string | null;
-	}
-
-	type VarMeasure = {
-		id: string;
-		name: string;
-		spec: unknown;
-	};
-
 	import { setContext } from 'svelte';
 
 	interface Props {
@@ -22,8 +9,6 @@
 		data: {
 			ptfs: Array<{ id: string; name: string; assetClass: string }>;
 			lastBusinessDayStr: string;
-			dayMeasures: DayMeasure[];
-			varMeasures: VarMeasure[];
 		};
 	}
 
@@ -55,7 +40,7 @@
 
 	<!-- Tabs -->
 	<div role="tablist" class="tabs gap-8 border-b border-gray-200 px-6">
-		{#each tabs as tab}
+		{#each tabs as tab (tab.id)}
 			<a
 				href={`/dashboard/${tab.id}`}
 				role="tab"

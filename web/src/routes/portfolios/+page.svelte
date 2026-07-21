@@ -4,7 +4,7 @@
 	let { data } = $props();
 </script>
 
-{#snippet actionButtons(row: (typeof data.ptfs)[0], index: number)}
+{#snippet actionButtons(row: (typeof data.ptfs)[0])}
 	<a href="/portfolios/{row.id}" class="w-full">
 		<button class="btn w-full btn-neutral">View details</button>
 	</a>

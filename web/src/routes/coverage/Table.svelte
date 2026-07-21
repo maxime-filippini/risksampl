@@ -1,13 +1,14 @@
-<script lang="ts" generics="Cols extends Record<string, string>">
+<script
+	lang="ts"
+	generics="Row extends Record<string, unknown>, Cols extends Partial<Record<keyof Row, string>>"
+>
 	import type { Snippet } from 'svelte';
-
-	type RowFrom<C> = { [K in keyof C]: unknown };
 
 	interface Props {
 		pageSize: number;
 		columns: Cols;
-		data: RowFrom<Cols>[];
-		actions?: (row: RowFrom<Cols>, index: number) => Snippet;
+		data: Row[];
+		actions?: Snippet<[Row, number]>;
 	}
 	let { pageSize, data, columns, actions }: Props = $props();
 
@@ -51,7 +52,7 @@
 			<thead>
 				<tr>
 					<th>#</th>
-					{#each Object.values(columns) as col}
+					{#each Object.values(columns) as col (col)}
 						<th>{col}</th>
 					{/each}
 					{#if actions}
@@ -60,10 +61,10 @@
 				</tr>
 			</thead>
 			<tbody>
-				{#each page as inst, ix}
+				{#each page as inst, ix (inst)}
 					<tr class="duration-100 hover:bg-base-300">
 						<td>{currentPage * pageSize + ix + 1}</td>
-						{#each Object.keys(columns) as col}
+						{#each Object.keys(columns) as col (col)}
 							<td>{inst[col as keyof typeof inst]}</td>
 						{/each}
 						{#if actions}

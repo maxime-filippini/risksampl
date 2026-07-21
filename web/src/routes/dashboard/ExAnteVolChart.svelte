@@ -1,6 +1,7 @@
 <script lang="ts">
 	import Chart from './Chart.svelte';
 	import type { EChartsCoreOption } from 'echarts/core';
+	import type { ChartTooltipParameter } from './chart_tooltip';
 
 	interface DayMeasure {
 		portfolioId: string;
@@ -57,9 +58,11 @@
 				axisPointer: {
 					type: 'shadow'
 				},
-				formatter: (params: any) => {
-					const data = params[0];
-					return `${data.name}<br/>Ex-ante volatility: ${data.value.toFixed(2)}%`;
+				formatter: (params: ChartTooltipParameter | ChartTooltipParameter[]) => {
+					const data = Array.isArray(params) ? params[0] : params;
+					if (!data) return '';
+
+					return `${data.name}<br/>Ex-ante volatility: ${Number(data.value).toFixed(2)}%`;
 				}
 			},
 			grid: {
@@ -102,7 +105,7 @@
 						show: true,
 						position: 'top',
 						rotate: data.length < 15 ? 0 : 90,
-						formatter: (params: any) => `${params.value.toFixed(2)}%`,
+						formatter: (params: ChartTooltipParameter) => `${Number(params.value).toFixed(2)}%`,
 						offset: data.length < 15 ? [0, 0] : [25, 5]
 					}
 				}

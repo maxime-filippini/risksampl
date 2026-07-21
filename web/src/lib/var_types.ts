@@ -20,6 +20,7 @@ export type FilterSpec = SampleFilterSpec | EwmaFilterSpec;
 type SampleQuantileSpec = {
 	type: 'sample';
 	interpolation: string | null;
+	lookback?: number;
 };
 
 type DistributionSpec = 'normal' | 't';
@@ -39,7 +40,8 @@ export type VarSpec = {
 
 const empiricalQuantileSpec = z.object({
 	type: z.literal('sample'),
-	interpolation: z.nullable(z.string())
+	interpolation: z.nullable(z.string()),
+	lookback: z.number().optional()
 });
 
 // Mean specifications

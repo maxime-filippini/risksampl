@@ -2,6 +2,10 @@
 
 A web application used to get a view of risk levels based on sample portfolio data.
 
+## VaR Labs beta baseline
+
+This repository is preserved as the legacy Risksampl reference while VaR Labs beta work begins from a verified baseline. See [the baseline notes](docs/var-labs-beta-baseline.md) for the scope, preserved behavior, and verification commands.
+
 ## Repository structure
 
 - `/web` contains the web application, built using SvelteKit.
