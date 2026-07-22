@@ -1,18 +1,19 @@
-from typing import Annotated, Literal
+from typing import Annotated, Literal, Self
 
 import pydantic
 
 type ConfidenceLevel = Annotated[float, pydantic.Field(lt=1, gt=0)]
+type QuantileInterpolation = Literal["left", "right", "linear"]
 
 
 class BaseVarSpec(pydantic.BaseModel):
     id: str
     confidence_level: ConfidenceLevel
-    lookback_window: int
+    lookback_window: int = pydantic.Field(gt=0)
 
 
 class BaseVolatilitySpec(pydantic.BaseModel):
-    lookback_window: int
+    lookback_window: int = pydantic.Field(gt=1)
 
 
 class SampleVolatilitySpec(BaseVolatilitySpec):
@@ -21,8 +22,14 @@ class SampleVolatilitySpec(BaseVolatilitySpec):
 
 class EwmaVolatilitySpec(BaseVolatilitySpec):
     kind: Literal["ewma-volatility"]
-    decay_factor: float
-    warm_up_window: int
+    decay_factor: float = pydantic.Field(lt=1, gt=0)
+    warm_up_window: int = pydantic.Field(gt=1)
+
+    @pydantic.model_validator(mode="after")
+    def validate_warm_up_window(self) -> Self:
+        if self.warm_up_window > self.lookback_window:
+            raise ValueError("warm-up window cannot exceed lookback window")
+        return self
 
 
 type VolatilitySpec = SampleVolatilitySpec | EwmaVolatilitySpec
@@ -35,7 +42,7 @@ class FilterSpec(pydantic.BaseModel):
 class HistoricalSimulationsVarSpec(BaseVarSpec):
     kind: Literal["historical"]
     filter: FilterSpec | None = pydantic.Field(default=None)
-    interpolation: Literal["left", "right", "linear"]
+    interpolation: QuantileInterpolation
     decay_factor: float = pydantic.Field(le=1, gt=0)
 
 
@@ -51,7 +58,7 @@ class GaussianDistributionSpec(BaseDistributionSpec):
 class StudentTDistributionSpec(BaseDistributionSpec):
     kind: Literal["t"]
     volatility: VolatilitySpec = pydantic.Field(discriminator="kind")
-    dof: int
+    dof: int = pydantic.Field(gt=0)
 
 
 type DistributionSpec = GaussianDistributionSpec | StudentTDistributionSpec

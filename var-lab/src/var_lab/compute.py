@@ -1,108 +1,284 @@
-from typing import assert_never, cast
+from typing import Literal, assert_never, cast
 
 import numpy as np
-import numpy.typing as npt
 from numpy.lib.stride_tricks import sliding_window_view
 from scipy import stats
 
 from var_lab import var
 
-# Convention: Returns are N-dimensional arrays, where the first dimension is
-# time. The rest of the dimensions are arbitrary batches. If returns are of
-# dimension (T,M,N,Q), then the associated volatility and VaR calculations will
-# be arrays of dimensions (M,N,Q).
-
+# Returns have shape (time, *batch). Every computation operates on the first
+# axis, leaving the remaining axes available for vectorized batches.
 type FloatArray[TShape: tuple[int, ...]] = np.ndarray[TShape, np.dtype[np.float64]]
 type NonScalarShape = tuple[int, *tuple[int, ...]]
+type BatchShape = tuple[int, ...]
+type ReturnsArray = FloatArray[NonScalarShape]
+type BatchArray = FloatArray[BatchShape]
 type RolledShape = tuple[int, *tuple[int, ...], int]
+type NumpyQuantileMethod = Literal["lower", "higher", "linear"]
 
 
-def compute_var(returns: npt.NDArray[np.float64], spec: var.VarSpec):
+def compute_var(returns: ReturnsArray, spec: var.VarSpec) -> BatchArray:
+    """Compute positive-loss VaR independently for every batch.
+
+    The first input axis is time and is removed from the result. An input with
+    shape ``(time, *batch)`` therefore produces an output with shape ``batch``.
+    A one-dimensional input produces a zero-dimensional array.
+    """
+    validated_returns = _validate_returns(returns)
+
     match spec:
         case var.HistoricalSimulationsVarSpec():
-            return _compute_historical_var(
-                returns=returns,
-                confidence_level=spec.confidence_level,
-                filter=spec.filter,
-            )
+            return _compute_historical_var(validated_returns, spec)
 
         case var.ParametricVarSpec():
-            return _compute_parametric_var(returns=returns, spec=spec)
+            return _compute_parametric_var(validated_returns, spec)
 
         case _:
-            _ = assert_never(spec)
+            assert_never(spec)
+
+
+def _validate_returns[TShape: NonScalarShape](
+    returns: FloatArray[TShape],
+) -> FloatArray[TShape]:
+    values = np.asarray(returns, dtype=np.float64)
+    if values.ndim == 0:
+        raise ValueError("returns must have a time axis")
+    if values.shape[0] == 0:
+        raise ValueError("returns must contain at least one observation")
+    if not np.all(np.isfinite(values)):
+        raise ValueError("returns must contain only finite values")
+    return cast(FloatArray[TShape], values)
+
+
+def _tail_along_first_axis[TShape: NonScalarShape](
+    arr: FloatArray[TShape], window_size: int
+) -> FloatArray[TShape]:
+    if window_size <= 0:
+        raise ValueError("window size must be positive")
+    if window_size > arr.shape[0]:
+        raise ValueError(
+            f"window size {window_size} exceeds {arr.shape[0]} observations"
+        )
+    return cast(FloatArray[TShape], arr[-window_size:])
 
 
 def _roll_along_first_axis[TDtype: np.dtype](
     arr: np.ndarray[NonScalarShape, TDtype],
     window_size: int,
 ) -> np.ndarray[RolledShape, TDtype]:
+    """Append a rolling-window axis while preserving all batch axes."""
+    if window_size <= 0:
+        raise ValueError("window size must be positive")
+    if window_size > arr.shape[0]:
+        raise ValueError(
+            f"window size {window_size} exceeds {arr.shape[0]} observations"
+        )
     return cast(
         np.ndarray[RolledShape, TDtype],
         sliding_window_view(arr, window_shape=window_size, axis=0),
     )
 
 
-def _apply_filter[TShape: NonScalarShape](
-    returns: FloatArray[TShape],
-    filter: var.FilterSpec,
+def _estimate_volatility_series[TShape: NonScalarShape](
+    returns: FloatArray[TShape], spec: var.VolatilitySpec
 ) -> FloatArray[TShape]:
-    """Applies a filter to returns.
+    """Estimate rolling volatility along time for every batch.
 
-    While the size of the first dimension may change depending on the lookback
-    window needed for volatility estimation, the number of dimensions remain
-    unchanged.
+    The result has shape ``(time - lookback + 1, *batch)``. NumPy's shape
+    types cannot currently express the changed first-axis length precisely.
     """
-    match filter.volatility:
-        case var.SampleVolatilitySpec(lookback_window=lookback_window):
-            _rolling = _roll_along_first_axis(returns, window_size=lookback_window)
+    windows = _roll_along_first_axis(returns, spec.lookback_window)
 
-        case var.EwmaVolatilitySpec():
-            pass
+    match spec:
+        case var.SampleVolatilitySpec():
+            volatilities = np.std(windows, axis=-1, ddof=1, dtype=np.float64)
+
+        case var.EwmaVolatilitySpec(
+            decay_factor=decay_factor,
+            warm_up_window=warm_up_window,
+        ):
+            volatilities = np.std(
+                windows[..., :warm_up_window],
+                axis=-1,
+                ddof=1,
+                dtype=np.float64,
+            )
+            for offset in range(warm_up_window, spec.lookback_window):
+                volatilities = np.sqrt(
+                    decay_factor * np.square(volatilities)
+                    + (1 - decay_factor) * np.square(windows[..., offset])
+                )
 
         case _:
-            assert_never(filter.volatility)
-    return returns
+            assert_never(spec)
+
+    return cast(FloatArray[TShape], np.asarray(volatilities, dtype=np.float64))
+
+
+def _estimate_volatility(returns: ReturnsArray, spec: var.VolatilitySpec) -> BatchArray:
+    """Return the latest volatility estimate for every batch."""
+    series = _estimate_volatility_series(returns, spec)
+    return cast(BatchArray, np.asarray(series[-1], dtype=np.float64))
+
+
+def _apply_filter[TShape: NonScalarShape](
+    returns: FloatArray[TShape],
+    filter_spec: var.FilterSpec,
+) -> FloatArray[TShape]:
+    """Apply filtered historical simulation along the first axis.
+
+    The first ``lookback - 1`` observations are removed because they do not
+    have a volatility estimate. The array rank and all batch axes are retained.
+    """
+    volatilities = _estimate_volatility_series(returns, filter_spec.volatility)
+    if np.any(~np.isfinite(volatilities)) or np.any(volatilities <= 0):
+        raise ValueError("filter volatility estimates must be finite and positive")
+
+    aligned_returns = returns[filter_spec.volatility.lookback_window - 1 :]
+    latest_volatility = volatilities[-1]
+    filtered = aligned_returns * latest_volatility / volatilities
+    return cast(FloatArray[TShape], np.asarray(filtered, dtype=np.float64))
+
+
+def _weighted_quantile_first_axis(
+    returns: ReturnsArray,
+    q: float,
+    *,
+    decay_factor: float,
+    interpolation: var.QuantileInterpolation,
+) -> BatchArray:
+    """Compute an age-weighted quantile independently for every batch.
+
+    The newest observation has weight 1 and each preceding observation's
+    weight is multiplied by ``decay_factor``. Equal weights delegate to NumPy
+    so left, right, and linear interpolation match its quantile definitions.
+    For decayed weights, interpolation is performed on the normalized weighted
+    empirical CDF.
+    """
+    method: dict[var.QuantileInterpolation, NumpyQuantileMethod] = {
+        "left": "lower",
+        "right": "higher",
+        "linear": "linear",
+    }
+    if decay_factor == 1:
+        quantile = np.quantile(returns, q=q, axis=0, method=method[interpolation])
+        return cast(BatchArray, np.asarray(quantile, dtype=np.float64))
+
+    observation_count = returns.shape[0]
+    batch_shape = returns.shape[1:]
+    flat_returns = returns.reshape(observation_count, -1)
+
+    ages = np.arange(observation_count - 1, -1, -1, dtype=np.float64)
+    chronological_weights = np.power(decay_factor, ages)
+    weights = np.broadcast_to(chronological_weights[:, None], flat_returns.shape)
+
+    order = np.argsort(flat_returns, axis=0)
+    sorted_returns = np.take_along_axis(flat_returns, order, axis=0)
+    sorted_weights = np.take_along_axis(weights, order, axis=0)
+    cumulative_weights = np.cumsum(sorted_weights, axis=0)
+    cumulative_weights /= cumulative_weights[-1]
+
+    if interpolation == "left":
+        indices = np.argmax(cumulative_weights >= q, axis=0)
+        quantile = sorted_returns[indices, np.arange(flat_returns.shape[1])]
+    elif interpolation == "right":
+        indices = np.argmax(cumulative_weights > q, axis=0)
+        quantile = sorted_returns[indices, np.arange(flat_returns.shape[1])]
+    else:
+        upper_indices = np.argmax(cumulative_weights >= q, axis=0)
+        lower_indices = np.maximum(upper_indices - 1, 0)
+        columns = np.arange(flat_returns.shape[1])
+
+        upper_weights = cumulative_weights[upper_indices, columns]
+        lower_weights = np.where(
+            upper_indices == 0,
+            0,
+            cumulative_weights[lower_indices, columns],
+        )
+        upper_returns = sorted_returns[upper_indices, columns]
+        lower_returns = np.where(
+            upper_indices == 0,
+            upper_returns,
+            sorted_returns[lower_indices, columns],
+        )
+        fractions = np.divide(
+            q - lower_weights,
+            upper_weights - lower_weights,
+            out=np.zeros_like(upper_weights),
+            where=upper_weights != lower_weights,
+        )
+        quantile = lower_returns + fractions * (upper_returns - lower_returns)
+
+    return cast(
+        BatchArray,
+        np.asarray(quantile.reshape(batch_shape), dtype=np.float64),
+    )
 
 
 def _compute_historical_var(
-    returns: npt.NDArray[np.float64],
+    returns: ReturnsArray,
+    spec: var.HistoricalSimulationsVarSpec,
+) -> BatchArray:
+    filtered_returns = (
+        returns if spec.filter is None else _apply_filter(returns, spec.filter)
+    )
+    sample = _tail_along_first_axis(filtered_returns, spec.lookback_window)
+    lower_tail_quantile = _weighted_quantile_first_axis(
+        sample,
+        q=1 - spec.confidence_level,
+        decay_factor=spec.decay_factor,
+        interpolation=spec.interpolation,
+    )
+    return cast(BatchArray, np.asarray(-lower_tail_quantile, dtype=np.float64))
+
+
+def _compute_gaussian_var(
+    volatility: BatchArray,
     confidence_level: var.ConfidenceLevel,
-    filter: var.FilterSpec | None,
-):
-    if filter is not None:
-        returns = _apply_filter(returns, filter)
-    return np.quantile(returns, q=1 - confidence_level)
+) -> BatchArray:
+    scale = np.where(volatility == 0, 1, volatility)
+    lower_tail = stats.norm.ppf(
+        1 - confidence_level,
+        loc=0,
+        scale=scale,
+    )
+    result = np.where(volatility == 0, 0, -lower_tail)
+    return cast(BatchArray, np.asarray(result, dtype=np.float64))
 
 
-def _estimate_vol(
-    returns: npt.NDArray[np.float64], spec: var.VolatilitySpec
-) -> npt.NDArray[np.float64]:
-    return np.array([1.1])
-
-
-def _compute_gaussian_quantile(
-    returns: npt.NDArray[np.float64],
-    vol_spec: var.VolatilitySpec,
-    p: float,
-) -> float:
-    vols = _estimate_vol(returns=returns, spec=vol_spec)
-    _qs = stats.norm.ppf(p, loc=0, scale=vols)
-    return 1.1
+def _compute_student_t_var(
+    volatility: BatchArray,
+    confidence_level: var.ConfidenceLevel,
+    dof: int,
+) -> BatchArray:
+    scale = np.where(volatility == 0, 1, volatility)
+    lower_tail = stats.t.ppf(
+        1 - confidence_level,
+        df=dof,
+        loc=0,
+        scale=scale,
+    )
+    result = np.where(volatility == 0, 0, -lower_tail)
+    return cast(BatchArray, np.asarray(result, dtype=np.float64))
 
 
 def _compute_parametric_var(
-    returns: npt.NDArray[np.float64],
+    returns: ReturnsArray,
     spec: var.ParametricVarSpec,
-):
-    match spec.dist:
-        case var.GaussianDistributionSpec(volatility=vol_spec):
-            return _compute_gaussian_quantile(
-                returns, vol_spec=vol_spec, p=spec.confidence_level
-            )
+) -> BatchArray:
+    sample = _tail_along_first_axis(returns, spec.lookback_window)
 
-        case var.StudentTDistributionSpec():
-            pass
+    match spec.dist:
+        case var.GaussianDistributionSpec(volatility=volatility_spec):
+            volatility = _estimate_volatility(sample, volatility_spec)
+            return _compute_gaussian_var(volatility, spec.confidence_level)
+
+        case var.StudentTDistributionSpec(
+            volatility=volatility_spec,
+            dof=dof,
+        ):
+            volatility = _estimate_volatility(sample, volatility_spec)
+            return _compute_student_t_var(volatility, spec.confidence_level, dof)
 
         case _:
             assert_never(spec.dist)
