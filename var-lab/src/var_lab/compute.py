@@ -1,3 +1,5 @@
+from collections.abc import Iterable, Sequence
+from dataclasses import dataclass
 from typing import Literal, assert_never, cast
 
 import numpy as np
@@ -17,24 +19,129 @@ type RolledShape = tuple[int, *tuple[int, ...], int]
 type NumpyQuantileMethod = Literal["lower", "higher", "linear"]
 
 
+@dataclass(frozen=True, slots=True)
+class FilteredReturnSet:
+    """Returns produced by one structurally unique filter specification."""
+
+    filter_spec: var.FilterSpec
+    returns: ReturnsArray
+
+
+@dataclass(frozen=True, slots=True)
+class PreparedReturns:
+    """Original returns plus reusable outputs from a filtering step."""
+
+    unfiltered: ReturnsArray
+    filtered: tuple[FilteredReturnSet, ...]
+
+    def _returns_for(self, spec: var.VarSpec) -> ReturnsArray:
+        filter_spec = _filter_for_spec(spec)
+        if filter_spec is None:
+            return self.unfiltered
+
+        for return_set in self.filtered:
+            if return_set.filter_spec == filter_spec:
+                return return_set.returns
+
+        raise ValueError(f"filter for model {spec.id!r} has not been prepared")
+
+
+def extract_unique_filters(
+    specs: Iterable[var.VarSpec],
+) -> tuple[var.FilterSpec, ...]:
+    """Return structurally unique filters in first-occurrence order."""
+    return _deduplicate_filters(
+        filter_spec
+        for spec in specs
+        if (filter_spec := _filter_for_spec(spec)) is not None
+    )
+
+
+def apply_filters(
+    returns: ReturnsArray,
+    filters: Iterable[var.FilterSpec],
+) -> PreparedReturns:
+    """Compute each unique filter once against the same return batches."""
+    validated_returns = _validate_returns(returns)
+    filtered = tuple(
+        FilteredReturnSet(
+            filter_spec=filter_spec,
+            returns=_apply_filter(validated_returns, filter_spec),
+        )
+        for filter_spec in _deduplicate_filters(filters)
+    )
+    return PreparedReturns(unfiltered=validated_returns, filtered=filtered)
+
+
+def compute_vars(
+    prepared_returns: PreparedReturns,
+    specs: Sequence[var.VarSpec],
+) -> dict[str, BatchArray]:
+    """Compute multiple models from already prepared returns.
+
+    Results are keyed by model id. Filtering is never performed by this
+    function; every referenced filter must exist in ``prepared_returns``.
+    """
+    model_ids = [spec.id for spec in specs]
+    if len(model_ids) != len(set(model_ids)):
+        raise ValueError("model ids must be unique")
+
+    return {
+        spec.id: _compute_var_from_prepared_returns(
+            prepared_returns._returns_for(spec), spec
+        )
+        for spec in specs
+    }
+
+
 def compute_var(returns: ReturnsArray, spec: var.VarSpec) -> BatchArray:
     """Compute positive-loss VaR independently for every batch.
 
     The first input axis is time and is removed from the result. An input with
     shape ``(time, *batch)`` therefore produces an output with shape ``batch``.
-    A one-dimensional input produces a zero-dimensional array.
+    A one-dimensional input produces a zero-dimensional array. This convenience
+    function prepares the model's filter, if any, before computing VaR.
     """
-    validated_returns = _validate_returns(returns)
+    prepared_returns = apply_filters(returns, extract_unique_filters((spec,)))
+    return compute_vars(prepared_returns, (spec,))[spec.id]
+
+
+def _compute_var_from_prepared_returns(
+    returns: ReturnsArray, spec: var.VarSpec
+) -> BatchArray:
+    """Compute VaR from returns already selected for a model's filter."""
 
     match spec:
         case var.HistoricalSimulationsVarSpec():
-            return _compute_historical_var(validated_returns, spec)
+            return _compute_historical_var(returns, spec)
 
         case var.ParametricVarSpec():
-            return _compute_parametric_var(validated_returns, spec)
+            return _compute_parametric_var(returns, spec)
 
         case _:
             assert_never(spec)
+
+
+def _filter_for_spec(spec: var.VarSpec) -> var.FilterSpec | None:
+    match spec:
+        case var.HistoricalSimulationsVarSpec(filter=filter_spec):
+            return filter_spec
+
+        case var.ParametricVarSpec():
+            return None
+
+        case _:
+            assert_never(spec)
+
+
+def _deduplicate_filters(
+    filters: Iterable[var.FilterSpec],
+) -> tuple[var.FilterSpec, ...]:
+    unique_filters: list[var.FilterSpec] = []
+    for filter_spec in filters:
+        if filter_spec not in unique_filters:
+            unique_filters.append(filter_spec)
+    return tuple(unique_filters)
 
 
 def _validate_returns[TShape: NonScalarShape](
@@ -239,10 +346,7 @@ def _compute_historical_var(
     returns: ReturnsArray,
     spec: var.HistoricalSimulationsVarSpec,
 ) -> BatchArray:
-    filtered_returns = (
-        returns if spec.filter is None else _apply_filter(returns, spec.filter)
-    )
-    sample = _tail_along_first_axis(filtered_returns, spec.lookback_window)
+    sample = _tail_along_first_axis(returns, spec.lookback_window)
     lower_tail_quantile = _weighted_quantile_first_axis(
         sample,
         q=1 - spec.confidence_level,
