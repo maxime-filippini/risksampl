@@ -15,11 +15,10 @@ def test_windows_must_be_positive() -> None:
         )
 
 
-def test_ewma_warm_up_cannot_exceed_lookback() -> None:
-    with pytest.raises(ValidationError, match="warm-up window"):
+def test_ewma_warm_up_must_contain_multiple_observations() -> None:
+    with pytest.raises(ValidationError):
         var.EwmaVolatilitySpec(
-            lookback_window=3,
-            warm_up_window=4,
+            warm_up_window=1,
             decay_factor=0.94,
         )
 

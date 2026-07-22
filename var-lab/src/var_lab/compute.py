@@ -84,35 +84,55 @@ def _estimate_volatility_series[TShape: NonScalarShape](
 ) -> FloatArray[TShape]:
     """Estimate rolling volatility along time for every batch.
 
-    The result has shape ``(time - lookback + 1, *batch)``. NumPy's shape
-    types cannot currently express the changed first-axis length precisely.
+    Sample volatility uses overlapping windows. EWMA is initialized once from
+    its warm-up sample and then recurses continuously along axis 0. NumPy's
+    shape types cannot express the changed first-axis length precisely.
     """
-    windows = _roll_along_first_axis(returns, spec.lookback_window)
-
     match spec:
-        case var.SampleVolatilitySpec():
+        case var.SampleVolatilitySpec(lookback_window=lookback_window):
+            windows = _roll_along_first_axis(returns, lookback_window)
             volatilities = np.std(windows, axis=-1, ddof=1, dtype=np.float64)
 
         case var.EwmaVolatilitySpec(
             decay_factor=decay_factor,
             warm_up_window=warm_up_window,
         ):
-            volatilities = np.std(
-                windows[..., :warm_up_window],
-                axis=-1,
+            if warm_up_window > returns.shape[0]:
+                raise ValueError(
+                    f"warm-up window {warm_up_window} exceeds "
+                    f"{returns.shape[0]} observations"
+                )
+            current = np.std(
+                returns[:warm_up_window],
+                axis=0,
                 ddof=1,
                 dtype=np.float64,
             )
-            for offset in range(warm_up_window, spec.lookback_window):
-                volatilities = np.sqrt(
-                    decay_factor * np.square(volatilities)
-                    + (1 - decay_factor) * np.square(windows[..., offset])
+            estimates = [current]
+            for timestamp in range(warm_up_window, returns.shape[0]):
+                current = np.sqrt(
+                    decay_factor * np.square(current)
+                    + (1 - decay_factor) * np.square(returns[timestamp])
                 )
+                estimates.append(current)
+            volatilities = np.stack(estimates, axis=0)
 
         case _:
             assert_never(spec)
 
     return cast(FloatArray[TShape], np.asarray(volatilities, dtype=np.float64))
+
+
+def _volatility_start_index(spec: var.VolatilitySpec) -> int:
+    match spec:
+        case var.SampleVolatilitySpec(lookback_window=lookback_window):
+            return lookback_window - 1
+
+        case var.EwmaVolatilitySpec(warm_up_window=warm_up_window):
+            return warm_up_window - 1
+
+        case _:
+            assert_never(spec)
 
 
 def _estimate_volatility(returns: ReturnsArray, spec: var.VolatilitySpec) -> BatchArray:
@@ -127,14 +147,14 @@ def _apply_filter[TShape: NonScalarShape](
 ) -> FloatArray[TShape]:
     """Apply filtered historical simulation along the first axis.
 
-    The first ``lookback - 1`` observations are removed because they do not
-    have a volatility estimate. The array rank and all batch axes are retained.
+    Observations before the estimator's first volatility value are removed.
+    The array rank and all batch axes are retained.
     """
     volatilities = _estimate_volatility_series(returns, filter_spec.volatility)
     if np.any(~np.isfinite(volatilities)) or np.any(volatilities <= 0):
         raise ValueError("filter volatility estimates must be finite and positive")
 
-    aligned_returns = returns[filter_spec.volatility.lookback_window - 1 :]
+    aligned_returns = returns[_volatility_start_index(filter_spec.volatility) :]
     latest_volatility = volatilities[-1]
     filtered = aligned_returns * latest_volatility / volatilities
     return cast(FloatArray[TShape], np.asarray(filtered, dtype=np.float64))

@@ -1,4 +1,4 @@
-from typing import Annotated, Literal, Self
+from typing import Annotated, Literal
 
 import pydantic
 
@@ -13,13 +13,14 @@ class BaseVarSpec(pydantic.BaseModel):
 
 
 class BaseVolatilitySpec(pydantic.BaseModel):
-    lookback_window: int = pydantic.Field(gt=1)
+    pass
 
 
 class SampleVolatilitySpec(BaseVolatilitySpec):
     kind: Literal["sample-volatility"] = pydantic.Field(
         default="sample-volatility", frozen=True
     )
+    lookback_window: int = pydantic.Field(gt=1)
 
 
 class EwmaVolatilitySpec(BaseVolatilitySpec):
@@ -28,12 +29,6 @@ class EwmaVolatilitySpec(BaseVolatilitySpec):
     )
     decay_factor: float = pydantic.Field(lt=1, gt=0)
     warm_up_window: int = pydantic.Field(gt=1)
-
-    @pydantic.model_validator(mode="after")
-    def validate_warm_up_window(self) -> Self:
-        if self.warm_up_window > self.lookback_window:
-            raise ValueError("warm-up window cannot exceed lookback window")
-        return self
 
 
 type VolatilitySpec = SampleVolatilitySpec | EwmaVolatilitySpec

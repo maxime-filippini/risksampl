@@ -61,21 +61,18 @@ def test_ewma_volatility_is_vectorized_across_batches() -> None:
         dtype=np.float64,
     )
     spec = var.EwmaVolatilitySpec(
-        lookback_window=4,
         warm_up_window=2,
         decay_factor=0.5,
     )
 
     actual = _estimate_volatility_series(returns, spec)
-    expected = []
-    for offset in range(2):
-        window = returns[offset : offset + 4]
-        volatility = np.std(window[:2], axis=0, ddof=1)
-        for observation in window[2:]:
-            volatility = np.sqrt(0.5 * volatility**2 + 0.5 * observation**2)
+    volatility = np.std(returns[:2], axis=0, ddof=1)
+    expected = [volatility]
+    for observation in returns[2:]:
+        volatility = np.sqrt(0.5 * volatility**2 + 0.5 * observation**2)
         expected.append(volatility)
 
-    assert actual.shape == (2, 2)
+    assert actual.shape == (4, 2)
     np.testing.assert_allclose(actual, np.stack(expected))
 
 
@@ -99,6 +96,28 @@ def test_filter_scales_aligned_returns_by_latest_volatility() -> None:
     expected = returns[2:] * rolling_volatility[-1] / rolling_volatility
 
     assert actual.shape == (3, 2)
+    np.testing.assert_allclose(actual, expected)
+
+
+def test_ewma_filter_uses_continuous_volatility_series() -> None:
+    returns = np.array([-0.04, -0.02, 0.01, -0.03, 0.05], dtype=np.float64)
+    filter_spec = var.FilterSpec(
+        volatility=var.EwmaVolatilitySpec(
+            warm_up_window=2,
+            decay_factor=0.5,
+        )
+    )
+    volatility = np.std(returns[:2], ddof=1)
+    volatility_series = [volatility]
+    for observation in returns[2:]:
+        volatility = np.sqrt(0.5 * volatility**2 + 0.5 * observation**2)
+        volatility_series.append(volatility)
+    volatility_series_array = np.asarray(volatility_series)
+
+    actual = _apply_filter(returns, filter_spec)
+    expected = returns[1:] * volatility_series_array[-1] / volatility_series_array
+
+    assert actual.shape == (4,)
     np.testing.assert_allclose(actual, expected)
 
 
