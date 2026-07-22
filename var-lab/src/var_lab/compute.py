@@ -74,6 +74,16 @@ def apply_filters(
 
 
 def compute_vars(
+    returns: ReturnsArray,
+    specs: Sequence[var.VarSpec],
+) -> dict[str, BatchArray]:
+    """Compute multiple models, preparing every unique filter once."""
+    _validate_unique_model_ids(specs)
+    prepared_returns = apply_filters(returns, extract_unique_filters(specs))
+    return compute_vars_from_prepared_returns(prepared_returns, specs)
+
+
+def compute_vars_from_prepared_returns(
     prepared_returns: PreparedReturns,
     specs: Sequence[var.VarSpec],
 ) -> dict[str, BatchArray]:
@@ -82,9 +92,7 @@ def compute_vars(
     Results are keyed by model id. Filtering is never performed by this
     function; every referenced filter must exist in ``prepared_returns``.
     """
-    model_ids = [spec.id for spec in specs]
-    if len(model_ids) != len(set(model_ids)):
-        raise ValueError("model ids must be unique")
+    _validate_unique_model_ids(specs)
 
     return {
         spec.id: _compute_var_from_prepared_returns(
@@ -102,8 +110,7 @@ def compute_var(returns: ReturnsArray, spec: var.VarSpec) -> BatchArray:
     A one-dimensional input produces a zero-dimensional array. This convenience
     function prepares the model's filter, if any, before computing VaR.
     """
-    prepared_returns = apply_filters(returns, extract_unique_filters((spec,)))
-    return compute_vars(prepared_returns, (spec,))[spec.id]
+    return compute_vars(returns, (spec,))[spec.id]
 
 
 def _compute_var_from_prepared_returns(
@@ -142,6 +149,12 @@ def _deduplicate_filters(
         if filter_spec not in unique_filters:
             unique_filters.append(filter_spec)
     return tuple(unique_filters)
+
+
+def _validate_unique_model_ids(specs: Sequence[var.VarSpec]) -> None:
+    model_ids = [spec.id for spec in specs]
+    if len(model_ids) != len(set(model_ids)):
+        raise ValueError("model ids must be unique")
 
 
 def _validate_returns[TShape: NonScalarShape](

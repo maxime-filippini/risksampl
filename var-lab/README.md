@@ -6,15 +6,27 @@ processes all remaining batch dimensions.
 
 ## Reusing filters across models
 
-Prepare every structurally unique filter once, then run all models against the
-same prepared return batches:
+For the common end-to-end path, every structurally unique filter is prepared
+once automatically:
 
 ```python
-from var_lab import apply_filters, compute_vars, extract_unique_filters
+from var_lab import compute_vars
+
+vars_by_model_id = compute_vars(returns, specs)
+```
+
+To run filtering and VaR computation as separate steps:
+
+```python
+from var_lab import (
+    apply_filters,
+    compute_vars_from_prepared_returns,
+    extract_unique_filters,
+)
 
 filters = extract_unique_filters(specs)
 prepared_returns = apply_filters(returns, filters)
-vars_by_model_id = compute_vars(prepared_returns, specs)
+vars_by_model_id = compute_vars_from_prepared_returns(prepared_returns, specs)
 ```
 
 `compute_var(returns, spec)` remains available as a convenience for a single

@@ -5,6 +5,7 @@ from var_lab import (
     apply_filters,
     compute_var,
     compute_vars,
+    compute_vars_from_prepared_returns,
     extract_unique_filters,
     var,
 )
@@ -82,7 +83,7 @@ def test_apply_filters_deduplicates_equivalent_filters() -> None:
     assert prepared.filtered[0].returns.shape == (3, 2)
 
 
-def test_compute_vars_reuses_prepared_filters_and_preserves_model_order() -> None:
+def test_compute_vars_prepares_filters_and_preserves_model_order() -> None:
     returns = np.array(
         [
             [-0.04, 0.01],
@@ -103,26 +104,52 @@ def test_compute_vars_reuses_prepared_filters_and_preserves_model_order() -> Non
         ),
         _historical_spec("unfiltered"),
     ]
-    prepared = apply_filters(returns, extract_unique_filters(specs))
-
-    results = compute_vars(prepared, specs)
+    results = compute_vars(returns, specs)
 
     assert list(results) == ["filtered-75", "filtered-90", "unfiltered"]
+    for spec in specs:
+        np.testing.assert_allclose(results[spec.id], compute_var(returns, spec))
+
+
+def test_compute_vars_from_prepared_returns_reuses_unique_filters() -> None:
+    returns = np.array(
+        [
+            [-0.04, 0.01],
+            [-0.02, -0.03],
+            [0.01, 0.02],
+            [-0.03, 0.04],
+            [0.05, -0.01],
+        ],
+        dtype=np.float64,
+    )
+    shared_filter = _sample_filter()
+    specs: list[var.VarSpec] = [
+        _historical_spec("filtered-75", filter_spec=shared_filter),
+        _historical_spec(
+            "filtered-90",
+            filter_spec=_sample_filter(),
+            confidence_level=0.90,
+        ),
+    ]
+    prepared = apply_filters(returns, extract_unique_filters(specs))
+
+    results = compute_vars_from_prepared_returns(prepared, specs)
+
     assert len(prepared.filtered) == 1
     for spec in specs:
         np.testing.assert_allclose(results[spec.id], compute_var(returns, spec))
 
 
-def test_compute_vars_requires_every_referenced_filter_to_be_prepared() -> None:
+def test_compute_vars_from_prepared_returns_requires_every_filter() -> None:
     returns = np.array([-0.04, -0.02, 0.01, -0.03], dtype=np.float64)
     spec = _historical_spec("filtered", filter_spec=_sample_filter())
     prepared = apply_filters(returns, ())
 
     with pytest.raises(ValueError, match="has not been prepared"):
-        compute_vars(prepared, [spec])
+        compute_vars_from_prepared_returns(prepared, [spec])
 
 
-def test_compute_vars_requires_unique_model_ids() -> None:
+def test_multi_model_functions_require_unique_model_ids() -> None:
     returns = np.array([-0.04, -0.02, 0.01, -0.03], dtype=np.float64)
     specs = [
         _historical_spec("duplicate"),
@@ -131,4 +158,7 @@ def test_compute_vars_requires_unique_model_ids() -> None:
     prepared = apply_filters(returns, ())
 
     with pytest.raises(ValueError, match="model ids must be unique"):
-        compute_vars(prepared, specs)
+        compute_vars_from_prepared_returns(prepared, specs)
+
+    with pytest.raises(ValueError, match="model ids must be unique"):
+        compute_vars(returns, specs)
