@@ -1,0 +1,76 @@
+from typing import Annotated, Literal
+
+import pydantic
+
+type ConfidenceLevel = Annotated[float, pydantic.Field(lt=1, gt=0)]
+type QuantileInterpolation = Literal["left", "right", "linear"]
+
+
+class BaseVarSpec(pydantic.BaseModel):
+    id: str
+    confidence_level: ConfidenceLevel
+    lookback_window: int = pydantic.Field(gt=0)
+
+
+class BaseVolatilitySpec(pydantic.BaseModel):
+    pass
+
+
+class SampleVolatilitySpec(BaseVolatilitySpec):
+    kind: Literal["sample-volatility"] = pydantic.Field(
+        default="sample-volatility", frozen=True
+    )
+    lookback_window: int = pydantic.Field(gt=1)
+
+
+class EwmaVolatilitySpec(BaseVolatilitySpec):
+    kind: Literal["ewma-volatility"] = pydantic.Field(
+        default="ewma-volatility", frozen=True
+    )
+    decay_factor: float = pydantic.Field(lt=1, gt=0)
+    warm_up_window: int = pydantic.Field(gt=1)
+
+
+type VolatilitySpec = SampleVolatilitySpec | EwmaVolatilitySpec
+
+
+class FilterSpec(pydantic.BaseModel):
+    volatility: VolatilitySpec = pydantic.Field(discriminator="kind")
+
+
+class HistoricalSimulationsVarSpec(BaseVarSpec):
+    kind: Literal["historical"] = pydantic.Field(default="historical", frozen=True)
+    filter: FilterSpec | None = pydantic.Field(default=None)
+    interpolation: QuantileInterpolation
+    decay_factor: float = pydantic.Field(le=1, gt=0)
+
+
+class BaseDistributionSpec(pydantic.BaseModel):
+    pass
+
+
+class GaussianDistributionSpec(BaseDistributionSpec):
+    kind: Literal["gaussian"] = pydantic.Field(default="gaussian", frozen=True)
+    volatility: VolatilitySpec = pydantic.Field(discriminator="kind")
+
+
+class StudentTDistributionSpec(BaseDistributionSpec):
+    kind: Literal["t"] = pydantic.Field(default="t", frozen=True)
+    volatility: VolatilitySpec = pydantic.Field(discriminator="kind")
+    dof: int = pydantic.Field(gt=0)
+
+
+type DistributionSpec = GaussianDistributionSpec | StudentTDistributionSpec
+
+
+class ParametricVarSpec(BaseVarSpec):
+    kind: Literal["parametric"] = pydantic.Field(default="parametric", frozen=True)
+    dist: DistributionSpec = pydantic.Field(discriminator="kind")
+
+
+type VarSpec = Annotated[
+    HistoricalSimulationsVarSpec | ParametricVarSpec,
+    pydantic.Field(discriminator="kind"),
+]
+
+var_spec_adapter: pydantic.TypeAdapter[VarSpec] = pydantic.TypeAdapter(VarSpec)

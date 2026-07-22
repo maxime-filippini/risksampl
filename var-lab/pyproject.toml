@@ -1,0 +1,31 @@
+[project]
+name = "var-lab"
+version = "0.1.0"
+description = "Add your description here"
+readme = "README.md"
+authors = [
+    { name = "Maxime Filippini", email = "maxime.filippini@gmail.com" }
+]
+requires-python = ">=3.13"
+dependencies = [
+    "numpy>=2.5.1",
+    "pydantic>=2.13.4",
+    "scipy>=1.18.0",
+    "scipy-stubs>=1.18.0.1",
+]
+
+[dependency-groups]
+dev = [
+    "pytest>=9.0.2",
+    "ruff>=0.14.0",
+]
+
+[build-system]
+requires = ["uv_build>=0.9.21,<0.10.0"]
+build-backend = "uv_build"
+
+[tool.ruff]
+target-version = "py313"
+
+[tool.ruff.lint]
+select = ["E4", "E7", "E9", "F", "I", "UP"]
