@@ -17,11 +17,15 @@ class BaseVolatilitySpec(pydantic.BaseModel):
 
 
 class SampleVolatilitySpec(BaseVolatilitySpec):
-    kind: Literal["sample-volatility"]
+    kind: Literal["sample-volatility"] = pydantic.Field(
+        default="sample-volatility", frozen=True
+    )
 
 
 class EwmaVolatilitySpec(BaseVolatilitySpec):
-    kind: Literal["ewma-volatility"]
+    kind: Literal["ewma-volatility"] = pydantic.Field(
+        default="ewma-volatility", frozen=True
+    )
     decay_factor: float = pydantic.Field(lt=1, gt=0)
     warm_up_window: int = pydantic.Field(gt=1)
 
@@ -40,7 +44,7 @@ class FilterSpec(pydantic.BaseModel):
 
 
 class HistoricalSimulationsVarSpec(BaseVarSpec):
-    kind: Literal["historical"]
+    kind: Literal["historical"] = pydantic.Field(default="historical", frozen=True)
     filter: FilterSpec | None = pydantic.Field(default=None)
     interpolation: QuantileInterpolation
     decay_factor: float = pydantic.Field(le=1, gt=0)
@@ -51,12 +55,12 @@ class BaseDistributionSpec(pydantic.BaseModel):
 
 
 class GaussianDistributionSpec(BaseDistributionSpec):
-    kind: Literal["gaussian"]
+    kind: Literal["gaussian"] = pydantic.Field(default="gaussian", frozen=True)
     volatility: VolatilitySpec = pydantic.Field(discriminator="kind")
 
 
 class StudentTDistributionSpec(BaseDistributionSpec):
-    kind: Literal["t"]
+    kind: Literal["t"] = pydantic.Field(default="t", frozen=True)
     volatility: VolatilitySpec = pydantic.Field(discriminator="kind")
     dof: int = pydantic.Field(gt=0)
 
@@ -65,7 +69,7 @@ type DistributionSpec = GaussianDistributionSpec | StudentTDistributionSpec
 
 
 class ParametricVarSpec(BaseVarSpec):
-    kind: Literal["parametric"]
+    kind: Literal["parametric"] = pydantic.Field(default="parametric", frozen=True)
     dist: DistributionSpec = pydantic.Field(discriminator="kind")
 
 

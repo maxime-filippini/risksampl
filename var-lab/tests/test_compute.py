@@ -14,7 +14,6 @@ from var_lab.compute import (
 
 def _sample_volatility(lookback_window: int) -> var.SampleVolatilitySpec:
     return var.SampleVolatilitySpec(
-        kind="sample-volatility",
         lookback_window=lookback_window,
     )
 
@@ -62,7 +61,6 @@ def test_ewma_volatility_is_vectorized_across_batches() -> None:
         dtype=np.float64,
     )
     spec = var.EwmaVolatilitySpec(
-        kind="ewma-volatility",
         lookback_window=4,
         warm_up_window=2,
         decay_factor=0.5,
@@ -116,7 +114,6 @@ def test_historical_var_filters_before_applying_model_lookback() -> None:
     expected = -np.quantile(filtered_returns[-2:], 0.25, method="linear")
     spec = var.HistoricalSimulationsVarSpec(
         id="filtered-historical",
-        kind="historical",
         confidence_level=0.75,
         lookback_window=2,
         filter=var.FilterSpec(volatility=_sample_volatility(3)),
@@ -143,7 +140,6 @@ def test_historical_var_removes_time_axis_for_all_batches() -> None:
     )
     spec = var.HistoricalSimulationsVarSpec(
         id="historical",
-        kind="historical",
         confidence_level=0.75,
         lookback_window=3,
         interpolation="linear",
@@ -165,7 +161,6 @@ def test_compute_var_supports_multiple_batch_dimensions() -> None:
     ).reshape(5, 2, 2)
     spec = var.HistoricalSimulationsVarSpec(
         id="historical-batches",
-        kind="historical",
         confidence_level=0.75,
         lookback_window=4,
         interpolation="linear",
@@ -210,18 +205,15 @@ def test_parametric_var_uses_latest_volatility_for_each_batch(
     volatility_spec = _sample_volatility(3)
     if distribution == "gaussian":
         distribution_spec: var.DistributionSpec = var.GaussianDistributionSpec(
-            kind="gaussian",
             volatility=volatility_spec,
         )
     else:
         distribution_spec = var.StudentTDistributionSpec(
-            kind="t",
             volatility=volatility_spec,
             dof=5,
         )
     spec = var.ParametricVarSpec(
         id=distribution,
-        kind="parametric",
         confidence_level=0.99,
         lookback_window=5,
         dist=distribution_spec,
@@ -242,7 +234,6 @@ def test_compute_var_rejects_non_finite_returns() -> None:
     returns = np.array([-0.01, np.nan, 0.02], dtype=np.float64)
     spec = var.HistoricalSimulationsVarSpec(
         id="historical",
-        kind="historical",
         confidence_level=0.99,
         lookback_window=3,
         interpolation="left",
@@ -257,7 +248,6 @@ def test_compute_var_rejects_insufficient_lookback() -> None:
     returns = np.array([-0.01, 0.02], dtype=np.float64)
     spec = var.HistoricalSimulationsVarSpec(
         id="historical",
-        kind="historical",
         confidence_level=0.99,
         lookback_window=3,
         interpolation="left",
