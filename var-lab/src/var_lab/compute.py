@@ -34,7 +34,7 @@ class PreparedReturns:
     unfiltered: ReturnsArray
     filtered: tuple[FilteredReturnSet, ...]
 
-    def _returns_for(self, spec: var.VarSpec) -> ReturnsArray:
+    def returns_for(self, spec: var.VarSpec) -> ReturnsArray:
         filter_spec = _filter_for_spec(spec)
         if filter_spec is None:
             return self.unfiltered
@@ -90,13 +90,13 @@ def compute_vars_from_prepared_returns(
     """Compute multiple models from already prepared returns.
 
     Results are keyed by model id. Filtering is never performed by this
-    function; every referenced filter must exist in ``prepared_returns``.
+    function; every referenced filter must exist in `prepared_returns`.
     """
     _validate_unique_model_ids(specs)
 
     return {
         spec.id: _compute_var_from_prepared_returns(
-            prepared_returns._returns_for(spec), spec
+            prepared_returns.returns_for(spec), spec
         )
         for spec in specs
     }
@@ -106,7 +106,7 @@ def compute_var(returns: ReturnsArray, spec: var.VarSpec) -> BatchArray:
     """Compute positive-loss VaR independently for every batch.
 
     The first input axis is time and is removed from the result. An input with
-    shape ``(time, *batch)`` therefore produces an output with shape ``batch``.
+    shape `(time, *batch)` therefore produces an output with shape `batch`.
     A one-dimensional input produces a zero-dimensional array. This convenience
     function prepares the model's filter, if any, before computing VaR.
     """
@@ -167,7 +167,7 @@ def _validate_returns[TShape: NonScalarShape](
         raise ValueError("returns must contain at least one observation")
     if not np.all(np.isfinite(values)):
         raise ValueError("returns must contain only finite values")
-    return cast(FloatArray[TShape], values)
+    return values
 
 
 def _tail_along_first_axis[TShape: NonScalarShape](
@@ -290,7 +290,7 @@ def _weighted_quantile_first_axis(
     """Compute an age-weighted quantile independently for every batch.
 
     The newest observation has weight 1 and each preceding observation's
-    weight is multiplied by ``decay_factor``. Equal weights delegate to NumPy
+    weight is multiplied by `decay_factor`. Equal weights delegate to NumPy
     so left, right, and linear interpolation match its quantile definitions.
     For decayed weights, interpolation is performed on the normalized weighted
     empirical CDF.
@@ -366,7 +366,7 @@ def _compute_historical_var(
         decay_factor=spec.decay_factor,
         interpolation=spec.interpolation,
     )
-    return cast(BatchArray, np.asarray(-lower_tail_quantile, dtype=np.float64))
+    return np.asarray(-lower_tail_quantile, dtype=np.float64)
 
 
 def _compute_gaussian_var(
