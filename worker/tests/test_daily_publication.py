@@ -14,6 +14,7 @@ from worker.value_at_risk.publication import LocalArtifactStore
 from worker.value_at_risk.publication import MarketData
 from worker.value_at_risk.publication import MarketDataSource
 from worker.value_at_risk.publication import PortfolioDefinition
+from worker.value_at_risk.publication import PublicationAlreadyExistsError
 from worker.value_at_risk.publication import PublicationValidationError
 from worker.value_at_risk.publication import publish_daily_snapshot
 
@@ -66,6 +67,13 @@ def historical_definitions() -> BenchmarkDefinitions:
     )
 
 
+def deterministic_returns() -> dict[str, tuple[float, ...]]:
+    return {
+        "SPY": (-0.05, -0.01, 0.02, -0.02),
+        "EFA": (-0.025, -0.035, -0.005, -0.045),
+    }
+
+
 def test_publish_one_historical_var_snapshot(tmp_path) -> None:
     reference_date = date(2026, 7, 21)
     publication_time = datetime(2026, 7, 22, 7, 0, tzinfo=timezone.utc)
@@ -75,12 +83,7 @@ def test_publish_one_historical_var_snapshot(tmp_path) -> None:
     published = publish_daily_snapshot(
         reference_date=reference_date,
         definitions=definitions,
-        market_data=DeterministicMarketData(
-            {
-                "SPY": (-0.05, -0.01, 0.02, -0.02),
-                "EFA": (-0.025, -0.035, -0.005, -0.045),
-            }
-        ),
+        market_data=DeterministicMarketData(deterministic_returns()),
         artifact_store=store,
         clock=FixedClock(publication_time),
     )
@@ -126,14 +129,39 @@ def test_validation_failure_does_not_publish_a_manifest(tmp_path) -> None:
         publish_daily_snapshot(
             reference_date=reference_date,
             definitions=historical_definitions(),
-            market_data=DeterministicMarketData(
-                {
-                    "SPY": (-0.05, -0.01, 0.02, -0.02),
-                    "EFA": (-0.025, -0.035, -0.005, -0.045),
-                }
-            ),
+            market_data=DeterministicMarketData(deterministic_returns()),
             artifact_store=store,
             clock=FixedClock(datetime(2026, 7, 22, 7, 0, tzinfo=timezone.utc)),
         )
 
     assert not store.path_for("snapshots/2026-07-21/manifest.json").exists()
+
+
+def test_existing_publication_is_not_overwritten(tmp_path) -> None:
+    reference_date = date(2026, 7, 21)
+    store = LocalArtifactStore(tmp_path)
+    publication = {
+        "reference_date": reference_date,
+        "definitions": historical_definitions(),
+        "artifact_store": store,
+        "clock": FixedClock(datetime(2026, 7, 22, 7, 0, tzinfo=timezone.utc)),
+    }
+    published = publish_daily_snapshot(market_data=DeterministicMarketData(deterministic_returns()), **publication)
+    original_manifest = store.read(published.manifest_key)
+    original_analytical = store.read(published.manifest.artifacts.analytical)
+    original_dashboard = store.read(published.manifest.artifacts.dashboard)
+
+    with pytest.raises(PublicationAlreadyExistsError):
+        publish_daily_snapshot(
+            market_data=DeterministicMarketData(
+                {
+                    "SPY": (-0.10, -0.08, -0.06, -0.04),
+                    "EFA": (-0.05, -0.03, -0.01, 0.01),
+                }
+            ),
+            **publication,
+        )
+
+    assert store.read(published.manifest_key) == original_manifest
+    assert store.read(published.manifest.artifacts.analytical) == original_analytical
+    assert store.read(published.manifest.artifacts.dashboard) == original_dashboard

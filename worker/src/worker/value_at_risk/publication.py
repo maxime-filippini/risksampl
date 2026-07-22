@@ -115,6 +115,8 @@ class MarketDataAdapter(Protocol):
 
 
 class ArtifactStore(Protocol):
+    def exists(self, key: str) -> bool: ...
+
     def write(self, key: str, content: bytes) -> None: ...
 
     def read(self, key: str) -> bytes: ...
@@ -141,6 +143,9 @@ class LocalArtifactStore:
 
     def read(self, key: str) -> bytes:
         return self.path_for(key).read_bytes()
+
+    def exists(self, key: str) -> bool:
+        return self.path_for(key).exists()
 
 
 @dataclass(frozen=True, slots=True)
@@ -170,6 +175,10 @@ class PublicationValidationError(ValueError):
     pass
 
 
+class PublicationAlreadyExistsError(ValueError):
+    pass
+
+
 def publish_daily_snapshot(
     *,
     reference_date: date,
@@ -178,20 +187,24 @@ def publish_daily_snapshot(
     artifact_store: ArtifactStore,
     clock: Clock,
 ) -> PublishedSnapshot:
+    prefix = f"snapshots/{reference_date.isoformat()}"
+    manifest_key = f"{prefix}/manifest.json"
+    if artifact_store.exists(manifest_key):
+        raise PublicationAlreadyExistsError(f"snapshot for {reference_date.isoformat()} is already published")
+
     symbols = tuple(holding.symbol for holding in definitions.portfolio.holdings)
-    loaded = market_data.load_returns(reference_date, symbols)
-    portfolio_returns = _portfolio_returns(loaded, definitions.portfolio)
-    result = float(compute_var(portfolio_returns, definitions.model.to_var_spec()).item())
-    if not np.isfinite(result) or result < 0:
+    loaded_market_data = market_data.load_returns(reference_date, symbols)
+    portfolio_returns = _portfolio_returns(loaded_market_data, definitions.portfolio)
+    var_value = float(compute_var(portfolio_returns, definitions.model.to_var_spec()).item())
+    if not np.isfinite(var_value) or var_value < 0:
         raise PublicationValidationError("VaR result must be finite and non-negative")
 
     row = {
         "as_of_date": reference_date.isoformat(),
         "model_id": definitions.model.id,
         "portfolio_id": definitions.portfolio.id,
-        "var": result,
+        "var": var_value,
     }
-    prefix = f"snapshots/{reference_date.isoformat()}"
     artifacts = ArtifactLocations(
         analytical=f"{prefix}/analytical.parquet",
         dashboard=f"{prefix}/dashboard.json",
@@ -207,13 +220,12 @@ def publish_daily_snapshot(
         as_of_date=reference_date,
         published_at=clock.now(),
         artifacts=artifacts,
-        data_source=loaded.source,
+        data_source=loaded_market_data.source,
         portfolio_definition_hash=definitions.portfolio.hash,
         model_definition_hash=definitions.model.hash,
     )
-    manifest_key = f"{prefix}/manifest.json"
     artifact_store.write(manifest_key, _serialize_manifest(manifest))
-    return PublishedSnapshot(var=result, manifest=manifest, manifest_key=manifest_key)
+    return PublishedSnapshot(var=var_value, manifest=manifest, manifest_key=manifest_key)
 
 
 def _portfolio_returns(market_data: MarketData, portfolio: PortfolioDefinition) -> np.ndarray:
