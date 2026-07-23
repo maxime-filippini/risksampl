@@ -58,7 +58,7 @@ class PortfolioDefinition:
 
 
 @dataclass(frozen=True, slots=True)
-class HistoricalVarDefinition:
+class VarDefinition:
     id: str
     version: str
     confidence_level: float
@@ -91,7 +91,7 @@ class HistoricalVarDefinition:
 @dataclass(frozen=True, slots=True)
 class BenchmarkDefinitions:
     portfolio: PortfolioDefinition
-    model: HistoricalVarDefinition
+    model: VarDefinition
 
 
 @dataclass(frozen=True, slots=True)
