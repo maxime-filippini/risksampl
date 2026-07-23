@@ -7,7 +7,6 @@ from datetime import timezone
 import pyarrow.parquet as parquet
 import pytest
 
-from worker.value_at_risk.publication import BenchmarkDefinitions
 from worker.value_at_risk.publication import HoldingDefinition
 from worker.value_at_risk.publication import LocalArtifactStore
 from worker.value_at_risk.publication import MarketData
@@ -15,6 +14,7 @@ from worker.value_at_risk.publication import MarketDataSource
 from worker.value_at_risk.publication import PortfolioDefinition
 from worker.value_at_risk.publication import PublicationAlreadyExistsError
 from worker.value_at_risk.publication import PublicationValidationError
+from worker.value_at_risk.publication import SnapshotDefinitions
 from worker.value_at_risk.publication import VarDefinition
 from worker.value_at_risk.publication import publish_daily_snapshot
 
@@ -45,8 +45,8 @@ class CorruptingDashboardStore(LocalArtifactStore):
         super().write(key, content)
 
 
-def benchmark_definitions() -> BenchmarkDefinitions:
-    return BenchmarkDefinitions(
+def snapshot_definitions() -> SnapshotDefinitions:
+    return SnapshotDefinitions(
         portfolio=PortfolioDefinition(
             id="diversified-equity",
             version="1",
@@ -77,7 +77,7 @@ def deterministic_returns() -> dict[str, tuple[float, ...]]:
 def test_publish_one_historical_var_snapshot(tmp_path) -> None:
     reference_date = date(2026, 7, 21)
     publication_time = datetime(2026, 7, 22, 7, 0, tzinfo=timezone.utc)
-    definitions = benchmark_definitions()
+    definitions = snapshot_definitions()
     store = LocalArtifactStore(tmp_path)
 
     published = publish_daily_snapshot(
@@ -128,7 +128,7 @@ def test_validation_failure_does_not_publish_a_manifest(tmp_path) -> None:
     with pytest.raises(PublicationValidationError, match="dashboard artifact failed validation"):
         publish_daily_snapshot(
             reference_date=reference_date,
-            definitions=benchmark_definitions(),
+            definitions=snapshot_definitions(),
             market_data=DeterministicMarketData(deterministic_returns()),
             artifact_store=store,
             clock=FixedClock(datetime(2026, 7, 22, 7, 0, tzinfo=timezone.utc)),
@@ -142,7 +142,7 @@ def test_existing_publication_is_not_overwritten(tmp_path) -> None:
     store = LocalArtifactStore(tmp_path)
     publication = {
         "reference_date": reference_date,
-        "definitions": benchmark_definitions(),
+        "definitions": snapshot_definitions(),
         "artifact_store": store,
         "clock": FixedClock(datetime(2026, 7, 22, 7, 0, tzinfo=timezone.utc)),
     }

@@ -89,7 +89,7 @@ class VarDefinition:
 
 
 @dataclass(frozen=True, slots=True)
-class BenchmarkDefinitions:
+class SnapshotDefinitions:
     portfolio: PortfolioDefinition
     model: VarDefinition
 
@@ -182,7 +182,7 @@ class PublicationAlreadyExistsError(ValueError):
 def publish_daily_snapshot(
     *,
     reference_date: date,
-    definitions: BenchmarkDefinitions,
+    definitions: SnapshotDefinitions,
     market_data: MarketDataAdapter,
     artifact_store: ArtifactStore,
     clock: Clock,
