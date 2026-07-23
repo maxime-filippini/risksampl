@@ -5,6 +5,7 @@ from datetime import datetime
 from datetime import timezone
 
 import pyarrow.parquet as parquet
+import pydantic
 import pytest
 
 from worker.value_at_risk.publication import HoldingDefinition
@@ -74,6 +75,61 @@ def deterministic_returns() -> dict[str, tuple[float, ...]]:
     }
 
 
+def test_snapshot_definitions_validate_serialized_json() -> None:
+    serialized = json.dumps(
+        {
+            "portfolio": {
+                "id": "diversified-equity",
+                "version": "1",
+                "holdings": [
+                    {"symbol": "SPY", "weight": 0.6},
+                    {"symbol": "EFA", "weight": 0.4},
+                ],
+            },
+            "model": {
+                "kind": "historical",
+                "id": "historical-99",
+                "version": "1",
+                "confidence_level": 0.99,
+                "horizon_days": 1,
+                "lookback_window": 4,
+                "interpolation": "left",
+                "decay_factor": 1.0,
+            },
+        }
+    )
+
+    assert SnapshotDefinitions.model_validate_json(serialized) == snapshot_definitions()
+
+
+def test_snapshot_definitions_reject_invalid_serialized_json() -> None:
+    serialized = json.dumps(
+        {
+            "portfolio": {
+                "id": "diversified-equity",
+                "version": "1",
+                "holdings": [
+                    {"symbol": "SPY", "weight": 0.7},
+                    {"symbol": "EFA", "weight": 0.4},
+                ],
+            },
+            "model": {
+                "kind": "historical",
+                "id": "historical-99",
+                "version": "1",
+                "confidence_level": 0.99,
+                "horizon_days": 1,
+                "lookback_window": 4,
+                "interpolation": "left",
+                "decay_factor": 1.0,
+            },
+        }
+    )
+
+    with pytest.raises(pydantic.ValidationError, match="holding weights must sum to 1"):
+        SnapshotDefinitions.model_validate_json(serialized)
+
+
 def test_publish_one_historical_var_snapshot(tmp_path) -> None:
     reference_date = date(2026, 7, 21)
     publication_time = datetime(2026, 7, 22, 7, 0, tzinfo=timezone.utc)
@@ -108,7 +164,7 @@ def test_publish_one_historical_var_snapshot(tmp_path) -> None:
         "data_source": {"name": "deterministic-fixture", "version": "v1"},
         "model_definition_hash": definitions.model.hash,
         "portfolio_definition_hash": definitions.portfolio.hash,
-        "published_at": "2026-07-22T07:00:00+00:00",
+        "published_at": "2026-07-22T07:00:00Z",
     }
     assert dashboard["results"] == [
         {

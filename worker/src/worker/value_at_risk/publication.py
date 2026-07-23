@@ -1,16 +1,18 @@
 import hashlib
 import json
 from collections.abc import Mapping
-from dataclasses import asdict
-from dataclasses import dataclass
 from datetime import date
 from datetime import datetime
 from pathlib import Path
+from typing import Annotated
+from typing import Literal
 from typing import Protocol
+from typing import Self
 
 import numpy as np
 import pyarrow as pa
 import pyarrow.parquet as parquet
+import pydantic
 from var_lab import compute_var
 from var_lab import var
 
@@ -19,64 +21,62 @@ def _canonical_json(value: object) -> bytes:
     return json.dumps(value, sort_keys=True, separators=(",", ":"), allow_nan=False).encode()
 
 
-def _definition_hash(value: object) -> str:
-    return hashlib.sha256(_canonical_json(value)).hexdigest()
+def _definition_hash(definition: pydantic.BaseModel) -> str:
+    return hashlib.sha256(_canonical_json(definition.model_dump(mode="json"))).hexdigest()
 
 
-@dataclass(frozen=True, slots=True)
-class HoldingDefinition:
-    symbol: str
-    weight: float
-
-    def __post_init__(self) -> None:
-        if not self.symbol:
-            raise ValueError("holding symbol must not be empty")
-        if not np.isfinite(self.weight) or self.weight <= 0:
-            raise ValueError("holding weight must be finite and positive")
+type NonEmptyString = Annotated[str, pydantic.Field(min_length=1)]
+type PositiveFloat = Annotated[float, pydantic.Field(gt=0)]
+type ConfidenceLevel = Annotated[float, pydantic.Field(gt=0, lt=1)]
+type DecayFactor = Annotated[float, pydantic.Field(gt=0, le=1)]
+type LookbackWindow = Annotated[int, pydantic.Field(gt=0)]
 
 
-@dataclass(frozen=True, slots=True)
-class PortfolioDefinition:
-    id: str
-    version: str
-    holdings: tuple[HoldingDefinition, ...]
+class _ValidatedModel(pydantic.BaseModel):
+    model_config = pydantic.ConfigDict(
+        allow_inf_nan=False,
+        extra="forbid",
+        frozen=True,
+    )
 
-    def __post_init__(self) -> None:
-        if not self.id or not self.version:
-            raise ValueError("portfolio id and version must not be empty")
-        if not self.holdings:
-            raise ValueError("portfolio must contain at least one holding")
+
+class HoldingDefinition(_ValidatedModel):
+    symbol: NonEmptyString
+    weight: PositiveFloat
+
+
+class PortfolioDefinition(_ValidatedModel):
+    id: NonEmptyString
+    version: NonEmptyString
+    holdings: Annotated[tuple[HoldingDefinition, ...], pydantic.Field(min_length=1)]
+
+    @pydantic.model_validator(mode="after")
+    def validate_holdings(self) -> Self:
         symbols = [holding.symbol for holding in self.holdings]
         if len(symbols) != len(set(symbols)):
             raise ValueError("portfolio holding symbols must be unique")
         if not np.isclose(sum(holding.weight for holding in self.holdings), 1.0):
             raise ValueError("portfolio holding weights must sum to 1")
+        return self
 
     @property
     def hash(self) -> str:
-        return _definition_hash(asdict(self))
+        return _definition_hash(self)
 
 
-@dataclass(frozen=True, slots=True)
-class VarDefinition:
-    id: str
-    version: str
-    confidence_level: float
-    horizon_days: int
-    lookback_window: int
+class VarDefinition(_ValidatedModel):
+    kind: Literal["historical"] = "historical"
+    id: NonEmptyString
+    version: NonEmptyString
+    confidence_level: ConfidenceLevel
+    horizon_days: Literal[1]
+    lookback_window: LookbackWindow
     interpolation: var.QuantileInterpolation
-    decay_factor: float
-
-    def __post_init__(self) -> None:
-        if not self.id or not self.version:
-            raise ValueError("model id and version must not be empty")
-        if self.horizon_days != 1:
-            raise ValueError("daily publication supports only a one-day horizon")
-        self.to_var_spec()
+    decay_factor: DecayFactor
 
     @property
     def hash(self) -> str:
-        return _definition_hash(asdict(self))
+        return _definition_hash(self)
 
     def to_var_spec(self) -> var.HistoricalSimulationsVarSpec:
         return var.HistoricalSimulationsVarSpec(
@@ -88,24 +88,17 @@ class VarDefinition:
         )
 
 
-@dataclass(frozen=True, slots=True)
-class SnapshotDefinitions:
+class SnapshotDefinitions(_ValidatedModel):
     portfolio: PortfolioDefinition
     model: VarDefinition
 
 
-@dataclass(frozen=True, slots=True)
-class MarketDataSource:
-    name: str
-    version: str
-
-    def __post_init__(self) -> None:
-        if not self.name or not self.version:
-            raise ValueError("market-data source name and version must not be empty")
+class MarketDataSource(_ValidatedModel):
+    name: NonEmptyString
+    version: NonEmptyString
 
 
-@dataclass(frozen=True, slots=True)
-class MarketData:
+class MarketData(_ValidatedModel):
     returns_by_symbol: Mapping[str, tuple[float, ...]]
     source: MarketDataSource
 
@@ -148,25 +141,22 @@ class LocalArtifactStore:
         return self.path_for(key).exists()
 
 
-@dataclass(frozen=True, slots=True)
-class ArtifactLocations:
+class ArtifactLocations(_ValidatedModel):
     analytical: str
     dashboard: str
 
 
-@dataclass(frozen=True, slots=True)
-class SnapshotManifest:
+class SnapshotManifest(_ValidatedModel):
     as_of_date: date
-    published_at: datetime
+    published_at: pydantic.AwareDatetime
     artifacts: ArtifactLocations
     data_source: MarketDataSource
     portfolio_definition_hash: str
     model_definition_hash: str
 
 
-@dataclass(frozen=True, slots=True)
-class PublishedSnapshot:
-    var: float
+class PublishedSnapshot(_ValidatedModel):
+    var: Annotated[float, pydantic.Field(ge=0)]
     manifest: SnapshotManifest
     manifest_key: str
 
@@ -270,13 +260,4 @@ def _validate_stored_artifacts(
 
 
 def _serialize_manifest(manifest: SnapshotManifest) -> bytes:
-    return _canonical_json(
-        {
-            "artifacts": asdict(manifest.artifacts),
-            "as_of_date": manifest.as_of_date.isoformat(),
-            "data_source": asdict(manifest.data_source),
-            "model_definition_hash": manifest.model_definition_hash,
-            "portfolio_definition_hash": manifest.portfolio_definition_hash,
-            "published_at": manifest.published_at.isoformat(),
-        }
-    )
+    return _canonical_json(manifest.model_dump(mode="json"))
