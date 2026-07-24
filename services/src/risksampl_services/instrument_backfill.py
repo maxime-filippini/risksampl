@@ -537,7 +537,7 @@ def retain_raw_provider_response(
     """Retain exact response bytes and immutable, non-secret retrieval metadata."""
     checksum = hashlib.sha256(response.body).hexdigest()
     object_key = f"{_RAW_ARTIFACT_PREFIX}/objects/{checksum}.bin"
-    identity_document = {
+    identity_document: dict[str, object] = {
         "schema_version": RAW_PROVIDER_RESPONSE_SCHEMA_VERSION,
         "provider": response.provider,
         "retrieved_at": response.retrieved_at.isoformat(),
@@ -670,21 +670,28 @@ class MarketstackEodNormalizer:
         rows: list[dict[str, object]] = []
         for response in responses:
             try:
-                document = json.loads(response.body)
+                decoded: object = json.loads(response.body)
             except (json.JSONDecodeError, UnicodeDecodeError) as error:
                 raise ProviderNormalizationError(
                     "Marketstack response is not valid JSON"
                 ) from error
-            page = document.get("data") if isinstance(document, dict) else None
-            if not isinstance(page, list):
+            if not isinstance(decoded, dict):
+                raise ProviderNormalizationError(
+                    "Marketstack response must be a JSON object"
+                )
+            document = cast(dict[str, object], decoded)
+            decoded_page = document.get("data")
+            if not isinstance(decoded_page, list):
                 raise ProviderNormalizationError(
                     "Marketstack response must contain a data array"
                 )
-            for provider_row in page:
-                if not isinstance(provider_row, dict):
+            page = cast(list[object], decoded_page)
+            for decoded_row in page:
+                if not isinstance(decoded_row, dict):
                     raise ProviderNormalizationError(
                         "Marketstack data entries must be objects"
                     )
+                provider_row = cast(dict[str, object], decoded_row)
                 self._validate_provider_identity(instrument, provider_row)
                 observation_date = self._parse_date(provider_row.get("date"))
                 for provider_field, canonical_metric in self._metric_fields.items():
@@ -818,20 +825,25 @@ class MarketstackFullHistoryProvider:
                     f"Marketstack returned HTTP {response.status_code}"
                 ) from error
             try:
-                document = response.json()
-                pagination = document["pagination"]
-                returned_offset = int(pagination["offset"])
-                count = int(pagination["count"])
-                total = int(pagination["total"])
-            except (
-                json.JSONDecodeError,
-                KeyError,
-                TypeError,
-                ValueError,
-            ) as error:
+                decoded: object = response.json()
+            except (json.JSONDecodeError, UnicodeDecodeError) as error:
                 raise ProviderResponseError(
                     "Marketstack response has invalid pagination metadata"
                 ) from error
+            if not isinstance(decoded, dict):
+                raise ProviderResponseError(
+                    "Marketstack response has invalid pagination metadata"
+                )
+            document = cast(dict[str, object], decoded)
+            decoded_pagination = document.get("pagination")
+            if not isinstance(decoded_pagination, dict):
+                raise ProviderResponseError(
+                    "Marketstack response has invalid pagination metadata"
+                )
+            pagination = cast(dict[str, object], decoded_pagination)
+            returned_offset = self._pagination_integer(pagination, "offset")
+            count = self._pagination_integer(pagination, "count")
+            total = self._pagination_integer(pagination, "total")
             if returned_offset != offset or count < 0 or total < 0:
                 raise ProviderResponseError(
                     "Marketstack response has inconsistent pagination metadata"
@@ -843,3 +855,20 @@ class MarketstackFullHistoryProvider:
                     "Marketstack pagination did not advance before reaching total"
                 )
             offset += count
+
+    @staticmethod
+    def _pagination_integer(
+        pagination: dict[str, object],
+        field: str,
+    ) -> int:
+        value = pagination.get(field)
+        if isinstance(value, bool) or not isinstance(value, (int, str)):
+            raise ProviderResponseError(
+                "Marketstack response has invalid pagination metadata"
+            )
+        try:
+            return int(value)
+        except ValueError as error:
+            raise ProviderResponseError(
+                "Marketstack response has invalid pagination metadata"
+            ) from error

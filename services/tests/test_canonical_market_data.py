@@ -2,9 +2,10 @@ import datetime as dt
 import hashlib
 import io
 from pathlib import Path
+from typing import Protocol, cast
 
 import polars as pl
-import pyarrow.parquet as pq
+import pyarrow.parquet as pq  # pyright: ignore[reportMissingTypeStubs]
 import pytest
 from polars.testing import assert_frame_equal
 
@@ -19,6 +20,37 @@ from risksampl_services.canonical_market_data import (
     load_canonical_snapshot,
     publish_canonical_snapshot,
 )
+
+
+class _ParquetColumnMetadata(Protocol):
+    @property
+    def compression(self) -> str: ...
+
+
+class _ParquetRowGroupMetadata(Protocol):
+    def column(self, index: int) -> _ParquetColumnMetadata: ...
+
+
+class _ParquetFileMetadata(Protocol):
+    @property
+    def num_row_groups(self) -> int: ...
+
+    @property
+    def num_columns(self) -> int: ...
+
+    def row_group(self, index: int) -> _ParquetRowGroupMetadata: ...
+
+
+class _ParquetFile(Protocol):
+    @property
+    def metadata(self) -> _ParquetFileMetadata: ...
+
+
+def _read_parquet_file(data: bytes) -> _ParquetFile:
+    return cast(
+        _ParquetFile,
+        pq.ParquetFile(io.BytesIO(data)),  # pyright: ignore[reportUnknownMemberType]
+    )
 
 
 def _observations(
@@ -142,7 +174,7 @@ def test_snapshot_object_is_zstd_compressed_parquet(tmp_path: Path) -> None:
         created_at=dt.datetime(2026, 7, 24, 12, tzinfo=dt.UTC),
     )
 
-    parquet = pq.ParquetFile(io.BytesIO(store.get(published.manifest.object_key)))
+    parquet = _read_parquet_file(store.get(published.manifest.object_key))
     compressions = {
         parquet.metadata.row_group(row_group).column(column).compression
         for row_group in range(parquet.metadata.num_row_groups)
