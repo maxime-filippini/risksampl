@@ -1,2 +1,2 @@
 [tool.uv.workspace]
-members = ["var-lab", "worker"]
+members = ["services", "var-lab", "worker"]
