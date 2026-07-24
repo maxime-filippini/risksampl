@@ -25,6 +25,7 @@ from risksampl_services.instrument_backfill import (
     MarketstackFullHistoryProvider,
     ProviderNormalizationError,
     RawProviderResponse,
+    UnknownExchangeCodeError,
 )
 
 
@@ -458,3 +459,35 @@ def test_instrument_requires_complete_stable_provider_identity() -> None:
             exchange_code="ARCX",
             currency="US",
         )
+
+
+def test_backfill_rejects_unknown_exchange_code_before_provider_fetch(
+    tmp_path: Path,
+) -> None:
+    instrument = Instrument(
+        instrument_id="instrument-unknown",
+        provider_symbol="UNKNOWN",
+        exchange_code="MADEUP",
+        currency="USD",
+    )
+    provider = RecordingProvider([_raw(b"must not be fetched")])
+    service = InstrumentBackfillService(
+        state=InMemoryBackfillState([instrument]),
+        provider=provider,
+        normalizer=StaticNormalizer(
+            _observations(
+                instrument.instrument_id,
+                [dt.date(2026, 7, 24)],
+                [100.0],
+            )
+        ),
+        artifact_store=DirectoryArtifactStore(tmp_path),
+    )
+
+    with pytest.raises(
+        UnknownExchangeCodeError,
+        match="exchange-calendar policy v1",
+    ):
+        service.backfill_and_enable(instrument.instrument_id)
+
+    assert provider.requested_instrument_ids == []
