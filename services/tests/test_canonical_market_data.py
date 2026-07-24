@@ -1,6 +1,7 @@
 import datetime as dt
 import hashlib
 import io
+import json
 from pathlib import Path
 from typing import Protocol, cast
 
@@ -16,6 +17,7 @@ from risksampl_services.canonical_market_data import (
     ChecksumMismatchError,
     DirectoryArtifactStore,
     ImmutableArtifactError,
+    ManifestConsistencyError,
     UnsupportedSchemaVersionError,
     load_canonical_snapshot,
     publish_canonical_snapshot,
@@ -157,6 +159,7 @@ def test_manifest_records_snapshot_provenance_and_date_coverage(
                 "latest_observation_date": "2026-07-22",
             },
         ],
+        "instrument_status": [],
     }
 
 
@@ -259,3 +262,44 @@ def test_reader_rejects_unsupported_schema_before_loading_object(
         match="unsupported canonical schema version 2",
     ):
         load_canonical_snapshot(store, unsupported_manifest_key)
+
+
+def test_snapshot_rejects_duplicate_canonical_keys(tmp_path: Path) -> None:
+    observations = _observations(
+        ["instrument-a", "instrument-a"],
+        [dt.date(2026, 7, 24), dt.date(2026, 7, 24)],
+        [101.5, 102.0],
+    )
+
+    with pytest.raises(
+        CanonicalSchemaError,
+        match="unique by instrument, date, and metric",
+    ):
+        publish_canonical_snapshot(observations, DirectoryArtifactStore(tmp_path))
+
+
+def test_reader_rejects_manifest_metadata_that_disagrees_with_object(
+    tmp_path: Path,
+) -> None:
+    store = DirectoryArtifactStore(tmp_path)
+    published = publish_canonical_snapshot(
+        _observations(
+            ["instrument-a"],
+            [dt.date(2026, 7, 24)],
+            [101.5],
+        ),
+        store,
+        created_at=dt.datetime(2026, 7, 24, 12, tzinfo=dt.UTC),
+    )
+    manifest_path = tmp_path.joinpath(*published.manifest_key.split("/"))
+    document = published.manifest.model_dump(mode="json")
+    document["row_count"] = 2
+    manifest_path.write_text(
+        json.dumps(document, sort_keys=True, separators=(",", ":"))
+    )
+
+    with pytest.raises(
+        ManifestConsistencyError,
+        match="row count does not match",
+    ):
+        load_canonical_snapshot(store, published.manifest_key)
