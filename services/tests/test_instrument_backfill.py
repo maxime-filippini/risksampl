@@ -167,7 +167,7 @@ def test_backfill_retains_raw_pages_and_enables_only_the_requested_instrument(
         "value",
     )
     assert_frame_equal(
-        load_canonical_snapshot(store, state.current_snapshot_manifest_key()),
+        load_canonical_snapshot(store, result.snapshot.manifest_key),
         expected,
     )
 
@@ -274,8 +274,8 @@ def test_disabling_preserves_history_and_requires_explicit_catch_up(
         artifact_store=store,
         clock=lambda: dt.datetime(2026, 7, 23, 18, tzinfo=dt.UTC),
     )
-    service.backfill_and_enable(target.instrument_id)
-    snapshot_before_disable = state.current_snapshot_manifest_key()
+    initial_result = service.backfill_and_enable(target.instrument_id)
+    snapshot_before_disable = initial_result.snapshot.manifest_key
 
     disabled = service.disable(target.instrument_id)
 
@@ -311,7 +311,7 @@ def test_disabling_preserves_history_and_requires_explicit_catch_up(
     assert result.instrument.catch_up_required is False
     assert result.instrument.latest_validated_observation_date == dt.date(2026, 7, 24)
     assert_frame_equal(
-        load_canonical_snapshot(store, state.current_snapshot_manifest_key()),
+        load_canonical_snapshot(store, result.snapshot.manifest_key),
         caught_up.sort("instrument_id", "observation_date", "metric", "value"),
     )
 
