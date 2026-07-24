@@ -9,6 +9,7 @@ import pytest
 from polars.testing import assert_frame_equal
 
 from risksampl_services.canonical_market_data import (
+    CANONICAL_SCHEMA,
     CANONICAL_SCHEMA_VERSION,
     CanonicalSchemaError,
     ChecksumMismatchError,
@@ -20,26 +21,33 @@ from risksampl_services.canonical_market_data import (
 )
 
 
+def _observations(
+    instrument_ids: list[str | None],
+    observation_dates: list[dt.date],
+    values: list[float],
+) -> pl.DataFrame:
+    return pl.DataFrame(
+        {
+            "instrument_id": instrument_ids,
+            "observation_date": observation_dates,
+            "metric": ["adjusted_close"] * len(instrument_ids),
+            "value": values,
+        },
+        schema=CANONICAL_SCHEMA,
+    )
+
+
 def test_canonical_snapshot_round_trips_through_artifact_store(
     tmp_path: Path,
 ) -> None:
-    observations = pl.DataFrame(
-        {
-            "instrument_id": ["instrument-b", "instrument-a", "instrument-a"],
-            "observation_date": [
-                dt.date(2026, 7, 23),
-                dt.date(2026, 7, 24),
-                dt.date(2026, 7, 23),
-            ],
-            "metric": ["adjusted_close", "adjusted_close", "adjusted_close"],
-            "value": [202.25, 101.5, 100.0],
-        },
-        schema={
-            "instrument_id": pl.String,
-            "observation_date": pl.Date,
-            "metric": pl.String,
-            "value": pl.Float64,
-        },
+    observations = _observations(
+        ["instrument-b", "instrument-a", "instrument-a"],
+        [
+            dt.date(2026, 7, 23),
+            dt.date(2026, 7, 24),
+            dt.date(2026, 7, 23),
+        ],
+        [202.25, 101.5, 100.0],
     )
     store = DirectoryArtifactStore(tmp_path)
 
@@ -59,19 +67,10 @@ def test_canonical_snapshot_requires_stable_instrument_identity(
     tmp_path: Path,
     instrument_id: str | None,
 ) -> None:
-    observations = pl.DataFrame(
-        {
-            "instrument_id": [instrument_id],
-            "observation_date": [dt.date(2026, 7, 24)],
-            "metric": ["adjusted_close"],
-            "value": [101.5],
-        },
-        schema={
-            "instrument_id": pl.String,
-            "observation_date": pl.Date,
-            "metric": pl.String,
-            "value": pl.Float64,
-        },
+    observations = _observations(
+        [instrument_id],
+        [dt.date(2026, 7, 24)],
+        [101.5],
     )
 
     with pytest.raises(
@@ -84,23 +83,14 @@ def test_canonical_snapshot_requires_stable_instrument_identity(
 def test_manifest_records_snapshot_provenance_and_date_coverage(
     tmp_path: Path,
 ) -> None:
-    observations = pl.DataFrame(
-        {
-            "instrument_id": ["instrument-b", "instrument-a", "instrument-a"],
-            "observation_date": [
-                dt.date(2026, 7, 22),
-                dt.date(2026, 7, 24),
-                dt.date(2026, 7, 23),
-            ],
-            "metric": ["adjusted_close", "adjusted_close", "adjusted_close"],
-            "value": [202.25, 101.5, 100.0],
-        },
-        schema={
-            "instrument_id": pl.String,
-            "observation_date": pl.Date,
-            "metric": pl.String,
-            "value": pl.Float64,
-        },
+    observations = _observations(
+        ["instrument-b", "instrument-a", "instrument-a"],
+        [
+            dt.date(2026, 7, 22),
+            dt.date(2026, 7, 24),
+            dt.date(2026, 7, 23),
+        ],
+        [202.25, 101.5, 100.0],
     )
     store = DirectoryArtifactStore(tmp_path)
     created_at = dt.datetime(2026, 7, 24, 12, tzinfo=dt.UTC)
@@ -139,19 +129,10 @@ def test_manifest_records_snapshot_provenance_and_date_coverage(
 
 
 def test_snapshot_object_is_zstd_compressed_parquet(tmp_path: Path) -> None:
-    observations = pl.DataFrame(
-        {
-            "instrument_id": ["instrument-a"],
-            "observation_date": [dt.date(2026, 7, 24)],
-            "metric": ["adjusted_close"],
-            "value": [101.5],
-        },
-        schema={
-            "instrument_id": pl.String,
-            "observation_date": pl.Date,
-            "metric": pl.String,
-            "value": pl.Float64,
-        },
+    observations = _observations(
+        ["instrument-a"],
+        [dt.date(2026, 7, 24)],
+        [101.5],
     )
     store = DirectoryArtifactStore(tmp_path)
 
@@ -173,19 +154,10 @@ def test_snapshot_object_is_zstd_compressed_parquet(tmp_path: Path) -> None:
 def test_snapshot_keys_are_deterministic_and_artifacts_are_immutable(
     tmp_path: Path,
 ) -> None:
-    observations = pl.DataFrame(
-        {
-            "instrument_id": ["instrument-a"],
-            "observation_date": [dt.date(2026, 7, 24)],
-            "metric": ["adjusted_close"],
-            "value": [101.5],
-        },
-        schema={
-            "instrument_id": pl.String,
-            "observation_date": pl.Date,
-            "metric": pl.String,
-            "value": pl.Float64,
-        },
+    observations = _observations(
+        ["instrument-b", "instrument-a"],
+        [dt.date(2026, 7, 24), dt.date(2026, 7, 23)],
+        [202.25, 101.5],
     )
     store = DirectoryArtifactStore(tmp_path)
     created_at = dt.datetime(2026, 7, 24, 12, tzinfo=dt.UTC)
@@ -209,19 +181,10 @@ def test_snapshot_keys_are_deterministic_and_artifacts_are_immutable(
 def test_reader_rejects_a_snapshot_with_a_checksum_mismatch(
     tmp_path: Path,
 ) -> None:
-    observations = pl.DataFrame(
-        {
-            "instrument_id": ["instrument-a"],
-            "observation_date": [dt.date(2026, 7, 24)],
-            "metric": ["adjusted_close"],
-            "value": [101.5],
-        },
-        schema={
-            "instrument_id": pl.String,
-            "observation_date": pl.Date,
-            "metric": pl.String,
-            "value": pl.Float64,
-        },
+    observations = _observations(
+        ["instrument-a"],
+        [dt.date(2026, 7, 24)],
+        [101.5],
     )
     store = DirectoryArtifactStore(tmp_path)
     published = publish_canonical_snapshot(
@@ -239,19 +202,10 @@ def test_reader_rejects_a_snapshot_with_a_checksum_mismatch(
 def test_reader_rejects_unsupported_schema_before_loading_object(
     tmp_path: Path,
 ) -> None:
-    observations = pl.DataFrame(
-        {
-            "instrument_id": ["instrument-a"],
-            "observation_date": [dt.date(2026, 7, 24)],
-            "metric": ["adjusted_close"],
-            "value": [101.5],
-        },
-        schema={
-            "instrument_id": pl.String,
-            "observation_date": pl.Date,
-            "metric": pl.String,
-            "value": pl.Float64,
-        },
+    observations = _observations(
+        ["instrument-a"],
+        [dt.date(2026, 7, 24)],
+        [101.5],
     )
     store = DirectoryArtifactStore(tmp_path)
     published = publish_canonical_snapshot(
