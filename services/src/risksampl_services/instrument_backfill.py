@@ -1,3 +1,10 @@
+"""Instrument onboarding through retained evidence and canonical snapshots.
+
+Backfill fetches every provider page for one registered instrument, stores each
+exact response as immutable evidence, normalizes and validates those responses,
+publishes a complete canonical snapshot, and only then enables the instrument.
+"""
+
 from __future__ import annotations
 
 import datetime as dt
@@ -56,7 +63,14 @@ class BackfillValidationError(InstrumentBackfillError):
 
 
 class Instrument(BaseModel):
-    """Stable provider identity and lifecycle state for one instrument."""
+    """Registered market instrument and its ingestion lifecycle state.
+
+    ``instrument_id`` is the stable internal identity used in canonical data;
+    provider symbols are lookup attributes and are never used as that identity.
+    Validated coverage is absent before onboarding and retained after disabling.
+    ``catch_up_required`` prevents a disabled instrument from being silently
+    re-enabled without explicitly filling the period in which it was inactive.
+    """
 
     model_config = ConfigDict(frozen=True)
 
@@ -111,7 +125,13 @@ class Instrument(BaseModel):
 
 
 class RawProviderResponse(BaseModel):
-    """Exact provider bytes plus non-secret retrieval evidence."""
+    """One provider HTTP response retained before interpretation.
+
+    ``body`` contains the exact response payload passed to normalization.
+    Retrieval metadata records when and how it was obtained while deliberately
+    excluding credentials. A paginated history request therefore produces one
+    instance—and later one immutable artifact—for every provider page.
+    """
 
     model_config = ConfigDict(frozen=True)
 
@@ -138,7 +158,13 @@ class RawProviderResponse(BaseModel):
 
 
 class RawProviderResponseManifest(BaseModel):
-    """Immutable evidence manifest for one exact provider response."""
+    """Immutable metadata for one stored raw provider response.
+
+    ``object_key`` locates the exact response bytes in the artifact store.
+    ``sha256`` verifies those bytes, while ``provider_response_id`` identifies
+    this particular retrieval, including its timestamp and request/response
+    metadata. The manifest is stored separately under its own manifest key.
+    """
 
     model_config = ConfigDict(frozen=True)
 
@@ -161,6 +187,13 @@ class RawProviderResponseManifest(BaseModel):
 
 
 class RetainedRawProviderResponse(BaseModel):
+    """Published raw-response manifest together with its artifact-store key.
+
+    The parsed ``manifest`` is convenient for the current workflow.
+    ``manifest_key`` is the durable reference another process can persist and
+    later use to retrieve the same evidence manifest.
+    """
+
     model_config = ConfigDict(frozen=True)
 
     manifest: RawProviderResponseManifest
@@ -176,6 +209,12 @@ class RetainedRawProviderResponse(BaseModel):
 
 
 class FullHistoryProvider(Protocol):
+    """Port for fetching every available provider page for one instrument.
+
+    Implementations yield pages individually so the workflow can retain each
+    response before requesting or interpreting the next one.
+    """
+
     def fetch_full_history(
         self,
         instrument: Instrument,
@@ -183,6 +222,12 @@ class FullHistoryProvider(Protocol):
 
 
 class ProviderNormalizer(Protocol):
+    """Port that translates retained provider payloads into canonical rows.
+
+    Normalizers understand provider-specific JSON fields, but their output must
+    use the provider-independent canonical schema and stable instrument ID.
+    """
+
     def normalize(
         self,
         instrument: Instrument,
@@ -191,7 +236,14 @@ class ProviderNormalizer(Protocol):
 
 
 class BackfillState(Protocol):
-    """Atomic operational state boundary, implemented by PostgreSQL in production."""
+    """Port for mutable instrument state and the canonical snapshot pointer.
+
+    Artifact objects and manifests are immutable, but the application still
+    needs mutable operational state saying which snapshot is current and which
+    instruments are enabled. A durable adapter is expected to implement
+    ``complete_backfill`` atomically so the instrument and snapshot pointer
+    cannot disagree.
+    """
 
     def get_instrument(self, instrument_id: str) -> Instrument: ...
 
@@ -207,7 +259,12 @@ class BackfillState(Protocol):
 
 
 class InMemoryBackfillState:
-    """In-memory state adapter for service tests and local composition."""
+    """Non-durable :class:`BackfillState` adapter for tests and local composition.
+
+    It models instruments as a dictionary and the current snapshot as one
+    manifest key. Production code can replace it with a PostgreSQL adapter
+    without changing the backfill workflow.
+    """
 
     def __init__(
         self,
@@ -264,7 +321,13 @@ class InMemoryBackfillState:
 
 
 class InstrumentBackfillPolicy(BaseModel):
-    """Configurable coverage requirements applied before snapshot promotion."""
+    """Configured minimum history required to onboard or catch up an instrument.
+
+    Required metrics and observation counts provide baseline instrument checks.
+    Optional earliest/latest dates let an operator demand a particular coverage
+    window. Policy failures prevent snapshot promotion and leave the instrument
+    disabled.
+    """
 
     model_config = ConfigDict(frozen=True)
 
@@ -308,6 +371,13 @@ SnapshotCheck = Callable[[pl.DataFrame], None]
 
 
 class InstrumentBackfillResult(BaseModel):
+    """Successful backfill outputs and the immutable references it produced.
+
+    It contains the newly enabled instrument state, the published canonical
+    snapshot (including its manifest key), and every retained raw response
+    (including each raw-response manifest key).
+    """
+
     model_config = ConfigDict(frozen=True, arbitrary_types_allowed=True)
 
     instrument: Instrument
@@ -316,7 +386,14 @@ class InstrumentBackfillResult(BaseModel):
 
 
 class InstrumentBackfillService:
-    """Backfill/catch-up workflow that promotes state only after validation."""
+    """Coordinates evidence retention, validation, publication, and enablement.
+
+    The service owns ordering rather than storage details: raw responses are
+    retained before normalization, the complete candidate snapshot is verified
+    after publication, and mutable state changes only through
+    ``complete_backfill`` at the end. Initial backfill and explicit catch-up
+    share this pipeline but enforce different lifecycle preconditions.
+    """
 
     def __init__(
         self,
@@ -570,7 +647,12 @@ def validate_candidate_snapshot(candidate: pl.DataFrame) -> None:
 
 
 class MarketstackEodNormalizer:
-    """Normalize retained Marketstack EOD pages into canonical long-form data."""
+    """Translate Marketstack EOD response pages into canonical observations.
+
+    Provider symbol, exchange code, and currency are checked against the
+    registered instrument before provider fields are mapped to canonical metric
+    names. The output uses the stable internal instrument ID.
+    """
 
     def __init__(
         self,
@@ -669,7 +751,13 @@ class MarketstackEodNormalizer:
 
 
 class MarketstackFullHistoryProvider:
-    """Paginated Marketstack v2 EOD adapter scoped to exactly one instrument."""
+    """Marketstack implementation of the full-history provider port.
+
+    It requests the v2 EOD endpoint for exactly one provider symbol, follows
+    offset pagination until the reported total is exhausted, and yields each
+    response before inspecting it further. Request metadata excludes the access
+    key so retained evidence cannot leak the provider credential.
+    """
 
     def __init__(
         self,

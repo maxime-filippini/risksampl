@@ -1,3 +1,11 @@
+"""Immutable canonical market-data snapshots and their artifact metadata.
+
+A snapshot is the complete canonical DataFrame for one publication point. Its
+Parquet bytes are stored as an immutable object. A separate JSON manifest
+describes and checksums that object. Callers retain the manifest key—not a
+mutable filename—as the durable reference needed to load the exact snapshot.
+"""
+
 from __future__ import annotations
 
 import datetime as dt
@@ -44,7 +52,13 @@ class ImmutableArtifactError(CanonicalSnapshotError):
 
 
 class ArtifactStore(Protocol):
-    """Minimal immutable byte-store boundary used by snapshot artifacts."""
+    """Storage boundary for immutable, key-addressed artifact bytes.
+
+    An artifact key is a relative, opaque identifier within a store, such as a
+    Parquet object key or JSON manifest key. ``put_if_absent`` gives publication
+    its immutability guarantee: an existing key may contain the same bytes, but
+    it must never be overwritten with different bytes.
+    """
 
     def put_if_absent(self, key: str, data: bytes) -> None: ...
 
@@ -52,7 +66,12 @@ class ArtifactStore(Protocol):
 
 
 class DirectoryArtifactStore:
-    """Directory-backed immutable artifact store for local operation and tests."""
+    """Filesystem implementation of :class:`ArtifactStore`.
+
+    Object keys are mapped beneath one root directory. This adapter gives local
+    runs and tests the same key-based semantics expected from remote object
+    storage, without making snapshot code depend on a particular cloud vendor.
+    """
 
     def __init__(self, root: Path) -> None:
         self._root = root
@@ -80,6 +99,13 @@ class DirectoryArtifactStore:
 
 
 class InstrumentDateCoverage(BaseModel):
+    """Inclusive canonical date range available for one stable instrument ID.
+
+    Coverage is derived from the validated canonical DataFrame rather than
+    copied from provider metadata, so it describes the data readers will
+    actually receive from the snapshot.
+    """
+
     model_config = ConfigDict(frozen=True)
 
     instrument_id: str
@@ -88,6 +114,15 @@ class InstrumentDateCoverage(BaseModel):
 
 
 class CanonicalSnapshotManifest(BaseModel):
+    """Immutable metadata needed to identify and verify one canonical snapshot.
+
+    The manifest points to the Parquet object through ``object_key`` and records
+    its checksum, schema version, row count, creation time, and per-instrument
+    coverage. The manifest itself is stored as a separate artifact; its storage
+    key is the durable snapshot reference passed to
+    :func:`load_canonical_snapshot`.
+    """
+
     model_config = ConfigDict(frozen=True)
 
     snapshot_id: str
@@ -109,6 +144,13 @@ class CanonicalSnapshotManifest(BaseModel):
 
 @dataclass(frozen=True, slots=True)
 class PublishedCanonicalSnapshot:
+    """Result of publishing a canonical snapshot and its manifest.
+
+    ``manifest`` exposes the parsed metadata for immediate use.
+    ``manifest_key`` identifies the immutable JSON manifest in the artifact
+    store and is what operational state should persist as the snapshot pointer.
+    """
+
     manifest: CanonicalSnapshotManifest
     manifest_key: str
 
