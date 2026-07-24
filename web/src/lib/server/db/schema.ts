@@ -1,5 +1,5 @@
 import type { VarSpec } from '$lib/var_types';
-import { relations } from 'drizzle-orm';
+import { relations, sql } from 'drizzle-orm';
 import {
 	pgTable,
 	varchar,
@@ -12,6 +12,8 @@ import {
 	date,
 	numeric,
 	decimal,
+	boolean,
+	check,
 	pgEnum,
 	jsonb
 } from 'drizzle-orm/pg-core';
@@ -22,14 +24,40 @@ export const instruments = pgTable(
 		id: uuid().primaryKey().notNull(),
 		name: varchar({ length: 255 }).notNull(),
 		ticker: varchar({ length: 10 }).notNull(),
+		providerSymbol: varchar('provider_symbol', { length: 32 }),
+		exchangeCode: varchar('exchange_code', { length: 16 }),
 		currency: varchar({ length: 3 }).notNull(),
-		assetClass: varchar({ length: 50 }).notNull()
+		assetClass: varchar({ length: 50 }).notNull(),
+		enabled: boolean().default(false).notNull(),
+		catchUpRequired: boolean('catch_up_required').default(false).notNull(),
+		firstValidatedObservationDate: date('first_validated_observation_date'),
+		latestValidatedObservationDate: date('latest_validated_observation_date')
 	},
 	(table) => [
 		index('ix_instruments_id').using('btree', table.id.asc().nullsLast().op('uuid_ops')),
 		uniqueIndex('ix_instruments_ticker').using(
 			'btree',
 			table.ticker.asc().nullsLast().op('text_ops')
+		),
+		uniqueIndex('ix_instruments_provider_identity').on(table.providerSymbol, table.exchangeCode),
+		check(
+			'instruments_provider_identity_complete',
+			sql`(${table.providerSymbol} IS NULL) = (${table.exchangeCode} IS NULL)`
+		),
+		check(
+			'instruments_validated_coverage_complete',
+			sql`((${table.firstValidatedObservationDate} IS NULL) = (${table.latestValidatedObservationDate} IS NULL))
+				AND (${table.firstValidatedObservationDate} IS NULL OR ${table.firstValidatedObservationDate} <= ${table.latestValidatedObservationDate})`
+		),
+		check(
+			'instruments_enabled_state_complete',
+			sql`NOT ${table.enabled} OR (
+				${table.providerSymbol} IS NOT NULL
+				AND ${table.exchangeCode} IS NOT NULL
+				AND ${table.firstValidatedObservationDate} IS NOT NULL
+				AND ${table.latestValidatedObservationDate} IS NOT NULL
+				AND NOT ${table.catchUpRequired}
+			)`
 		),
 		unique('instruments_name_key').on(table.name)
 	]

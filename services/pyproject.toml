@@ -4,6 +4,7 @@ version = "0.1.0"
 description = "One-shot data and publication services for VaR Labs"
 requires-python = ">=3.13"
 dependencies = [
+    "httpx>=0.28.1",
     "polars>=1.32.3",
     "pydantic>=2.13.4",
 ]
