@@ -1,0 +1,7 @@
+{
+  "include": ["services/src", "services/tests"],
+  "extraPaths": ["services/src"],
+  "venvPath": ".",
+  "venv": ".venv",
+  "typeCheckingMode": "strict"
+}
