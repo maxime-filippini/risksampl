@@ -12,15 +12,16 @@ import datetime as dt
 import hashlib
 import io
 import json
+from collections.abc import Iterable
 from dataclasses import dataclass
 from pathlib import Path, PurePosixPath
-from typing import Protocol
+from typing import Final, Literal, Protocol
 
 import polars as pl
 from pydantic import BaseModel, ConfigDict
 
-CANONICAL_SCHEMA_VERSION = 1
-CANONICAL_SCHEMA = pl.Schema(
+CANONICAL_SCHEMA_VERSION: Final = 1
+CANONICAL_SCHEMA: Final = pl.Schema(
     {
         "instrument_id": pl.String,
         "observation_date": pl.Date,
@@ -28,7 +29,7 @@ CANONICAL_SCHEMA = pl.Schema(
         "value": pl.Float64,
     }
 )
-_ARTIFACT_PREFIX = f"canonical-market-data/v{CANONICAL_SCHEMA_VERSION}"
+_ARTIFACT_PREFIX: Final = f"canonical-market-data/v{CANONICAL_SCHEMA_VERSION}"
 
 
 class CanonicalSnapshotError(Exception):
@@ -45,6 +46,10 @@ class ChecksumMismatchError(CanonicalSnapshotError):
 
 class UnsupportedSchemaVersionError(CanonicalSnapshotError):
     """The manifest declares a schema version this service cannot read."""
+
+
+class ManifestConsistencyError(CanonicalSnapshotError):
+    """The manifest disagrees with its identity or canonical object."""
 
 
 class ImmutableArtifactError(CanonicalSnapshotError):
@@ -113,6 +118,31 @@ class InstrumentDateCoverage(BaseModel):
     latest_observation_date: dt.date
 
 
+class InstrumentFinding(BaseModel):
+    """One versioned, machine-readable instrument validation result."""
+
+    model_config = ConfigDict(frozen=True)
+
+    instrument_id: str
+    severity: Literal["error", "warning"]
+    reason_code: str
+    check_version: int
+    message: str
+    measured_values: dict[str, str | int | float | bool | None]
+
+
+class InstrumentSnapshotStatus(BaseModel):
+    """Eligibility, freshness, and findings captured at snapshot creation."""
+
+    model_config = ConfigDict(frozen=True)
+
+    instrument_id: str
+    exchange_calendar_id: str
+    eligible: bool
+    latest_observation_date: dt.date
+    findings: tuple[InstrumentFinding, ...] = ()
+
+
 class CanonicalSnapshotManifest(BaseModel):
     """Immutable metadata needed to identify and verify one canonical snapshot.
 
@@ -132,6 +162,7 @@ class CanonicalSnapshotManifest(BaseModel):
     sha256: str
     row_count: int
     date_coverage: tuple[InstrumentDateCoverage, ...]
+    instrument_status: tuple[InstrumentSnapshotStatus, ...] = ()
 
     def to_bytes(self) -> bytes:
         document = self.model_dump(mode="json")
@@ -160,6 +191,7 @@ def publish_canonical_snapshot(
     store: ArtifactStore,
     *,
     created_at: dt.datetime | None = None,
+    instrument_status: Iterable[InstrumentSnapshotStatus] = (),
 ) -> PublishedCanonicalSnapshot:
     """Publish one complete canonical frame as immutable Parquet and manifest."""
     canonical = _canonicalize(observations)
@@ -172,12 +204,12 @@ def publish_canonical_snapshot(
     if creation_time.tzinfo is None:
         raise ValueError("created_at must include a timezone")
     creation_time = creation_time.astimezone(dt.UTC)
-    identity = (
-        f"{CANONICAL_SCHEMA_VERSION}\0{creation_time.isoformat()}\0{object_checksum}"
-    ).encode()
-    snapshot_id = hashlib.sha256(identity).hexdigest()
+    snapshot_id = _snapshot_id(creation_time, object_checksum)
     object_key = f"{_ARTIFACT_PREFIX}/objects/{object_checksum}.parquet"
     manifest_key = f"{_ARTIFACT_PREFIX}/manifests/{snapshot_id}.json"
+    sorted_instrument_status = tuple(
+        sorted(tuple(instrument_status), key=_instrument_status_id)
+    )
 
     manifest = CanonicalSnapshotManifest(
         snapshot_id=snapshot_id,
@@ -187,7 +219,9 @@ def publish_canonical_snapshot(
         sha256=object_checksum,
         row_count=canonical.height,
         date_coverage=_date_coverage(canonical),
+        instrument_status=sorted_instrument_status,
     )
+    _validate_manifest_consistency(manifest, canonical, manifest_key)
     store.put_if_absent(object_key, object_bytes)
     store.put_if_absent(manifest_key, manifest.to_bytes())
     return PublishedCanonicalSnapshot(manifest=manifest, manifest_key=manifest_key)
@@ -204,6 +238,24 @@ def load_canonical_snapshot(
             f"unsupported canonical schema version {manifest.schema_version}; "
             f"supported version is {CANONICAL_SCHEMA_VERSION}"
         )
+    expected_object_key = f"{_ARTIFACT_PREFIX}/objects/{manifest.sha256}.parquet"
+    if manifest.object_key != expected_object_key:
+        raise ManifestConsistencyError(
+            "canonical manifest object key does not match its checksum"
+        )
+    expected_snapshot_id = _snapshot_id(
+        manifest.created_at,
+        manifest.sha256,
+    )
+    if manifest.snapshot_id != expected_snapshot_id:
+        raise ManifestConsistencyError(
+            "canonical manifest snapshot ID does not match its contents"
+        )
+    expected_manifest_key = f"{_ARTIFACT_PREFIX}/manifests/{manifest.snapshot_id}.json"
+    if manifest_key != expected_manifest_key:
+        raise ManifestConsistencyError(
+            "canonical manifest key does not match its snapshot ID"
+        )
 
     object_bytes = store.get(manifest.object_key)
     actual_checksum = hashlib.sha256(object_bytes).hexdigest()
@@ -215,6 +267,7 @@ def load_canonical_snapshot(
 
     observations = pl.read_parquet(io.BytesIO(object_bytes))
     _validate_schema(observations)
+    _validate_manifest_consistency(manifest, observations, manifest_key)
     return observations
 
 
@@ -237,6 +290,18 @@ def _validate_schema(observations: pl.DataFrame) -> None:
     instrument_ids = observations["instrument_id"]
     if instrument_ids.null_count() or instrument_ids.str.strip_chars().eq("").any():
         raise CanonicalSchemaError("instrument_id must contain non-empty stable IDs")
+    if any(observations[column].null_count() for column in observations.columns):
+        raise CanonicalSchemaError("canonical observations must not contain nulls")
+    duplicate_count = (
+        observations.group_by("instrument_id", "observation_date", "metric")
+        .len()
+        .filter(pl.col("len") > 1)
+        .height
+    )
+    if duplicate_count:
+        raise CanonicalSchemaError(
+            "canonical observations must be unique by instrument, date, and metric"
+        )
 
 
 def _date_coverage(
@@ -254,3 +319,64 @@ def _date_coverage(
         InstrumentDateCoverage.model_validate(row)
         for row in coverage.iter_rows(named=True)
     )
+
+
+def _snapshot_id(created_at: dt.datetime, object_checksum: str) -> str:
+    identity = (
+        f"{CANONICAL_SCHEMA_VERSION}\0{created_at.isoformat()}\0{object_checksum}"
+    ).encode()
+    return hashlib.sha256(identity).hexdigest()
+
+
+def _instrument_status_id(status: InstrumentSnapshotStatus) -> str:
+    return status.instrument_id
+
+
+def _validate_manifest_consistency(
+    manifest: CanonicalSnapshotManifest,
+    observations: pl.DataFrame,
+    manifest_key: str,
+) -> None:
+    if manifest.row_count != observations.height:
+        raise ManifestConsistencyError(
+            "canonical manifest row count does not match its object"
+        )
+    if manifest.date_coverage != _date_coverage(observations):
+        raise ManifestConsistencyError(
+            "canonical manifest date coverage does not match its object"
+        )
+    coverage_by_instrument = {
+        item.instrument_id: item for item in manifest.date_coverage
+    }
+    status_ids = [status.instrument_id for status in manifest.instrument_status]
+    if len(status_ids) != len(set(status_ids)):
+        raise ManifestConsistencyError(
+            "canonical manifest instrument status contains duplicate instruments"
+        )
+    for status in manifest.instrument_status:
+        coverage = coverage_by_instrument.get(status.instrument_id)
+        if coverage is None:
+            raise ManifestConsistencyError(
+                "canonical manifest instrument status has no object coverage"
+            )
+        if status.latest_observation_date != coverage.latest_observation_date:
+            raise ManifestConsistencyError(
+                "canonical manifest instrument freshness disagrees with object coverage"
+            )
+        if any(
+            finding.instrument_id != status.instrument_id for finding in status.findings
+        ):
+            raise ManifestConsistencyError(
+                "canonical manifest finding belongs to a different instrument"
+            )
+        has_error = any(finding.severity == "error" for finding in status.findings)
+        if status.eligible == has_error:
+            raise ManifestConsistencyError(
+                "canonical manifest eligibility disagrees with instrument findings"
+            )
+
+    expected_manifest_key = f"{_ARTIFACT_PREFIX}/manifests/{manifest.snapshot_id}.json"
+    if manifest_key != expected_manifest_key:
+        raise ManifestConsistencyError(
+            "canonical manifest key does not match its snapshot ID"
+        )

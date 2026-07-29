@@ -12,7 +12,7 @@ import hashlib
 import json
 import math
 from collections.abc import Callable, Iterable, Mapping
-from typing import Protocol, Self, cast
+from typing import Final, Protocol, Self, cast
 
 import httpx
 import polars as pl
@@ -26,8 +26,20 @@ from risksampl_services.canonical_market_data import (
     publish_canonical_snapshot,
 )
 
-RAW_PROVIDER_RESPONSE_SCHEMA_VERSION = 1
-_RAW_ARTIFACT_PREFIX = f"raw-provider-responses/v{RAW_PROVIDER_RESPONSE_SCHEMA_VERSION}"
+RAW_PROVIDER_RESPONSE_SCHEMA_VERSION: Final = 1
+_RAW_ARTIFACT_PREFIX: Final = (
+    f"raw-provider-responses/v{RAW_PROVIDER_RESPONSE_SCHEMA_VERSION}"
+)
+EXCHANGE_CALENDAR_MAPPING_VERSION: Final = 1
+EXCHANGE_CALENDAR_IDS: Final[Mapping[str, str]] = {
+    "ARCX": "XNYS",
+    "BATS": "XNYS",
+    "XNAS": "XNAS",
+    "XNYS": "XNYS",
+    "XPAR": "XPAR",
+    "XLON": "XLON",
+    "XETR": "XFRA",
+}
 
 
 class InstrumentBackfillError(Exception):
@@ -60,6 +72,10 @@ class ProviderNormalizationError(InstrumentBackfillError):
 
 class BackfillValidationError(InstrumentBackfillError):
     """Normalized or candidate canonical observations failed validation."""
+
+
+class UnknownExchangeCodeError(BackfillValidationError):
+    """A provider exchange code has no pinned calendar mapping."""
 
 
 class Instrument(BaseModel):
@@ -458,6 +474,7 @@ class InstrumentBackfillService:
         self,
         instrument: Instrument,
     ) -> InstrumentBackfillResult:
+        resolve_exchange_calendar(instrument.exchange_code)
         responses: list[RawProviderResponse] = []
         retained: list[RetainedRawProviderResponse] = []
         for response in self._provider.fetch_full_history(instrument):
@@ -567,6 +584,18 @@ def retain_raw_provider_response(
     store.put_if_absent(object_key, response.body)
     store.put_if_absent(manifest_key, manifest.to_bytes())
     return RetainedRawProviderResponse(manifest=manifest, manifest_key=manifest_key)
+
+
+def resolve_exchange_calendar(exchange_code: str) -> str:
+    """Resolve one known provider exchange code without heuristic guessing."""
+    normalized = exchange_code.strip().upper()
+    try:
+        return EXCHANGE_CALENDAR_IDS[normalized]
+    except KeyError:
+        raise UnknownExchangeCodeError(
+            f"exchange code {normalized!r} has no mapping in "
+            f"exchange-calendar policy v{EXCHANGE_CALENDAR_MAPPING_VERSION}"
+        ) from None
 
 
 def validate_instrument_observations(

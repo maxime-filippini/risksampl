@@ -15,7 +15,9 @@ import {
 	boolean,
 	check,
 	pgEnum,
-	jsonb
+	jsonb,
+	text,
+	timestamp
 } from 'drizzle-orm/pg-core';
 
 export const instruments = pgTable(
@@ -119,6 +121,73 @@ export const investmentsRelations = relations(investments, ({ one }) => ({
 export const instrumentsRelations = relations(instruments, ({ many }) => ({
 	investments: many(investments)
 }));
+
+export const marketDataIngestionRunStatus = pgEnum('market_data_ingestion_run_status', [
+	'running',
+	'promoted',
+	'no_change',
+	'failed'
+]);
+
+export const canonicalMarketDataState = pgTable(
+	'canonical_market_data_state',
+	{
+		singleton: boolean().primaryKey().default(true).notNull(),
+		currentSnapshotManifestKey: text('current_snapshot_manifest_key'),
+		updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow().notNull()
+	},
+	(table) => [check('canonical_market_data_state_singleton', sql`${table.singleton}`)]
+);
+
+export const marketDataIngestionRuns = pgTable(
+	'market_data_ingestion_runs',
+	{
+		logicalRunId: varchar('logical_run_id', { length: 255 }).primaryKey(),
+		status: marketDataIngestionRunStatus().notNull(),
+		startedAt: timestamp('started_at', { withTimezone: true }).notNull(),
+		finishedAt: timestamp('finished_at', { withTimezone: true }),
+		baseSnapshotManifestKey: text('base_snapshot_manifest_key').notNull(),
+		promotedSnapshotManifestKey: text('promoted_snapshot_manifest_key'),
+		rawResponseManifestKeys: jsonb('raw_response_manifest_keys')
+			.$type<string[]>()
+			.default(sql`'[]'::jsonb`)
+			.notNull(),
+		instrumentStatus: jsonb('instrument_status')
+			.default(sql`'[]'::jsonb`)
+			.notNull(),
+		error: text()
+	},
+	(table) => [
+		index('ix_market_data_ingestion_runs_status_started').on(table.status, table.startedAt),
+		uniqueIndex('ux_market_data_ingestion_runs_single_running')
+			.on(table.status)
+			.where(sql`${table.status} = 'running'`),
+		check(
+			'market_data_ingestion_runs_terminal_state',
+			sql`(
+				(${table.status} = 'running'
+					AND ${table.finishedAt} IS NULL
+					AND ${table.promotedSnapshotManifestKey} IS NULL
+					AND ${table.error} IS NULL)
+				OR
+				(${table.status} = 'promoted'
+					AND ${table.finishedAt} IS NOT NULL
+					AND ${table.promotedSnapshotManifestKey} IS NOT NULL
+					AND ${table.error} IS NULL)
+				OR
+				(${table.status} = 'no_change'
+					AND ${table.finishedAt} IS NOT NULL
+					AND ${table.promotedSnapshotManifestKey} IS NULL
+					AND ${table.error} IS NULL)
+				OR
+				(${table.status} = 'failed'
+					AND ${table.finishedAt} IS NOT NULL
+					AND ${table.promotedSnapshotManifestKey} IS NULL
+					AND ${table.error} IS NOT NULL)
+			)`
+		)
+	]
+);
 
 export const portfoliosRelations = relations(portfolios, ({ many }) => ({
 	investments: many(investments)
