@@ -15,13 +15,13 @@ import json
 from collections.abc import Iterable
 from dataclasses import dataclass
 from pathlib import Path, PurePosixPath
-from typing import Literal, Protocol
+from typing import Final, Literal, Protocol
 
 import polars as pl
 from pydantic import BaseModel, ConfigDict
 
-CANONICAL_SCHEMA_VERSION = 1
-CANONICAL_SCHEMA = pl.Schema(
+CANONICAL_SCHEMA_VERSION: Final = 1
+CANONICAL_SCHEMA: Final = pl.Schema(
     {
         "instrument_id": pl.String,
         "observation_date": pl.Date,
@@ -29,7 +29,7 @@ CANONICAL_SCHEMA = pl.Schema(
         "value": pl.Float64,
     }
 )
-_ARTIFACT_PREFIX = f"canonical-market-data/v{CANONICAL_SCHEMA_VERSION}"
+_ARTIFACT_PREFIX: Final = f"canonical-market-data/v{CANONICAL_SCHEMA_VERSION}"
 
 
 class CanonicalSnapshotError(Exception):

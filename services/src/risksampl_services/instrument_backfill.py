@@ -12,8 +12,7 @@ import hashlib
 import json
 import math
 from collections.abc import Callable, Iterable, Mapping
-from types import MappingProxyType
-from typing import Protocol, Self, cast
+from typing import Final, Protocol, Self, cast
 
 import httpx
 import polars as pl
@@ -27,20 +26,20 @@ from risksampl_services.canonical_market_data import (
     publish_canonical_snapshot,
 )
 
-RAW_PROVIDER_RESPONSE_SCHEMA_VERSION = 1
-_RAW_ARTIFACT_PREFIX = f"raw-provider-responses/v{RAW_PROVIDER_RESPONSE_SCHEMA_VERSION}"
-EXCHANGE_CALENDAR_MAPPING_VERSION = 1
-EXCHANGE_CALENDAR_IDS: Mapping[str, str] = MappingProxyType(
-    {
-        "ARCX": "XNYS",
-        "BATS": "XNYS",
-        "XNAS": "XNAS",
-        "XNYS": "XNYS",
-        "XPAR": "XPAR",
-        "XLON": "XLON",
-        "XETR": "XFRA",
-    }
+RAW_PROVIDER_RESPONSE_SCHEMA_VERSION: Final = 1
+_RAW_ARTIFACT_PREFIX: Final = (
+    f"raw-provider-responses/v{RAW_PROVIDER_RESPONSE_SCHEMA_VERSION}"
 )
+EXCHANGE_CALENDAR_MAPPING_VERSION: Final = 1
+EXCHANGE_CALENDAR_IDS: Final[Mapping[str, str]] = {
+    "ARCX": "XNYS",
+    "BATS": "XNYS",
+    "XNAS": "XNAS",
+    "XNYS": "XNYS",
+    "XPAR": "XPAR",
+    "XLON": "XLON",
+    "XETR": "XFRA",
+}
 
 
 class InstrumentBackfillError(Exception):

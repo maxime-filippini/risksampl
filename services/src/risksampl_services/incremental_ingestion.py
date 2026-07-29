@@ -14,7 +14,7 @@ import datetime as dt
 import json
 import math
 from collections.abc import Callable, Iterable
-from typing import Literal, Protocol, cast
+from typing import Final, Literal, Protocol, cast
 
 import httpx
 import polars as pl
@@ -42,8 +42,8 @@ from risksampl_services.instrument_backfill import (
     validate_candidate_snapshot,
 )
 
-INSTRUMENT_CHECK_VERSION = 1
-_CANONICAL_KEY = ("instrument_id", "observation_date", "metric")
+INSTRUMENT_CHECK_VERSION: Final = 1
+_CANONICAL_KEY: Final = ("instrument_id", "observation_date", "metric")
 
 
 class IncrementalIngestionError(Exception):
